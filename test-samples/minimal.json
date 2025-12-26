@@ -1,0 +1,8 @@
+{
+  "key": "value",
+  "number": 42,
+  "boolean": true,
+  "array": [1, 2, 3],
+  "null": null
+}
+

@@ -1,0 +1,40 @@
+HTML Entity Encoding Test Samples
+
+=== Sample 1: Basic HTML Tags ===
+<div>Hello World</div>
+<p>This is a paragraph</p>
+<h1>Heading</h1>
+
+=== Sample 2: HTML with Attributes ===
+<a href="https://example.com">Click here</a>
+<img src="image.jpg" alt="My Image">
+<input type="text" value="test">
+
+=== Sample 3: HTML with Special Characters ===
+<p>Price: $19.99 & Shipping: $5.00</p>
+<div>Copyright © 2024</div>
+<p>Quote: "Hello World"</p>
+
+=== Sample 4: HTML with Quotes ===
+<div class="container">
+  <p>He said "Hello" to me</p>
+  <p>She said 'Hi' back</p>
+</div>
+
+=== Sample 5: HTML with Script Tags ===
+<script>
+  console.log("Hello World");
+  var x = 10;
+</script>
+
+=== Sample 6: HTML with Mixed Content ===
+<div>
+  <h1>Title & Subtitle</h1>
+  <p>Text with "quotes" and 'apostrophes'</p>
+  <a href="/page?id=123&type=test">Link</a>
+</div>
+
+=== Sample 7: HTML with Unicode ===
+<p>José & München</p>
+<div>こんにちは & Здравствуй</div>
+

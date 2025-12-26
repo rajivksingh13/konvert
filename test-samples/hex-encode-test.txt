@@ -1,0 +1,28 @@
+Hex Encoding Test Samples
+
+=== Sample 1: Simple Text ===
+Hello World
+
+=== Sample 2: Text with Numbers ===
+Test123
+
+=== Sample 3: Text with Special Characters ===
+Hello@World#2024
+
+=== Sample 4: JSON String ===
+{"name":"John","age":30,"city":"New York"}
+
+=== Sample 5: URL String ===
+https://example.com/path?query=test
+
+=== Sample 6: Base64 String ===
+SGVsbG8gV29ybGQ=
+
+=== Sample 7: Unicode Text ===
+José München こんにちは
+
+=== Sample 8: Multi-line Text ===
+Line 1
+Line 2
+Line 3
+

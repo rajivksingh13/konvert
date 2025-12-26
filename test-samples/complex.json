@@ -1,0 +1,53 @@
+{
+  "application": {
+    "name": "Konvert",
+    "version": "1.0.0",
+    "description": "Universal Format Converter",
+    "settings": {
+      "theme": "dark",
+      "language": "en",
+      "autoSave": true,
+      "maxHistory": 50
+    },
+    "features": {
+      "converter": {
+        "enabled": true,
+        "supportedFormats": ["json", "yaml", "xml", "toml", "properties", "protobuf"]
+      },
+      "formatter": {
+        "enabled": true,
+        "indentSize": 2,
+        "wrapLines": true
+      },
+      "export": {
+        "enabled": true,
+        "formats": ["json", "yaml", "xml"]
+      }
+    },
+    "users": [
+      {
+        "id": 1,
+        "name": "Alice",
+        "role": "admin",
+        "permissions": ["read", "write", "delete"]
+      },
+      {
+        "id": 2,
+        "name": "Bob",
+        "role": "user",
+        "permissions": ["read", "write"]
+      }
+    ],
+    "statistics": {
+      "totalConversions": 1250,
+      "lastConversion": "2024-12-22T18:00:00Z",
+      "popularFormats": {
+        "json": 450,
+        "yaml": 380,
+        "xml": 220,
+        "toml": 200
+      }
+    }
+  }
+}
+

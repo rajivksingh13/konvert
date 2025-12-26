@@ -1,0 +1,20 @@
+URL Encoded Test Samples (for decoding)
+
+=== Sample 1: Basic Encoded URL ===
+https%3A%2F%2Fexample.com%2Fpath%3Fname%3DJohn%20Doe%26age%3D30
+
+=== Sample 2: Encoded with Special Characters ===
+https%3A%2F%2Fexample.com%2Fsearch%3Fq%3Dhello%20world%26category%3Dbooks%26price%3D%2419.99
+
+=== Sample 3: Encoded Query Parameters ===
+name%3DJane%20Smith%26email%3Djane%40example.com%26role%3Dadmin
+
+=== Sample 4: Encoded Path and Query ===
+https%3A%2F%2Fexample.com%2Fapi%2Fv1%2Fusers%2F123%2Fprofile%3Ftab%3Dsettings
+
+=== Sample 5: Encoded Unicode Characters ===
+name%3DJos%C3%A9%26city%3DM%C3%BCnchen%26text%3D%E3%81%93%E3%82%93%E3%81%AB%E3%81%A1%E3%81%AF
+
+=== Sample 6: Encoded JSON in Query ===
+data%3D%7B%22name%22%3A%22test%22%2C%22value%22%3A123%7D
+

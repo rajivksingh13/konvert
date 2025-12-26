@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+// Simple example for basic conversions
+message SimpleData {
+  string name = 1;
+  int32 value = 2;
+  bool active = 3;
+}
+

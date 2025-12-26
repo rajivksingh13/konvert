@@ -1,0 +1,26 @@
+URL Encoding Test Samples
+
+=== Sample 1: Basic URL ===
+https://example.com/path?name=John Doe&age=30
+
+=== Sample 2: URL with Special Characters ===
+https://example.com/search?q=hello world&category=books&price=$19.99
+
+=== Sample 3: URL with Multiple Parameters ===
+https://api.example.com/users?name=Jane Smith&email=jane@example.com&role=admin&status=active
+
+=== Sample 4: URL with Path Segments ===
+https://example.com/api/v1/users/123/profile?tab=settings&view=detailed
+
+=== Sample 5: URL with Encoded Characters ===
+https://example.com/page?text=Hello%20World&symbol=@#$%^&*()
+
+=== Sample 6: Complex Query String ===
+https://example.com/search?query=test+query&filter=category:electronics&sort=price:asc&page=1&limit=20
+
+=== Sample 7: URL with Unicode Characters ===
+https://example.com/page?name=José&city=München&text=こんにちは
+
+=== Sample 8: URL with JSON in Query ===
+https://example.com/api?data={"name":"test","value":123}
+

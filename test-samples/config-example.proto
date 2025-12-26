@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+// Configuration example matching sample.properties
+message AppConfig {
+  AppInfo app = 1;
+  DatabaseConfig database = 2;
+  ServerConfig server = 3;
+  FeatureFlags features = 4;
+  LoggingConfig logging = 5;
+}
+
+message AppInfo {
+  string name = 1;
+  string version = 2;
+  string description = 3;
+  string author = 4;
+}
+
+message DatabaseConfig {
+  string host = 1;
+  int32 port = 2;
+  string name = 3;
+  string username = 4;
+  string password = 5;
+  bool ssl_enabled = 6;
+  bool ssl_verify = 7;
+}
+
+message ServerConfig {
+  string host = 1;
+  int32 port = 2;
+  int32 timeout = 3;
+  int32 max_connections = 4;
+}
+
+message FeatureFlags {
+  bool dark_mode_enabled = 1;
+  bool export_enabled = 2;
+  bool batch_processing_enabled = 3;
+}
+
+message LoggingConfig {
+  string level = 1;
+  string file_path = 2;
+  string file_max_size = 3;
+  int32 file_max_files = 4;
+}
+

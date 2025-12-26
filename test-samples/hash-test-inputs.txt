@@ -1,0 +1,56 @@
+Hash Generation Test Samples
+
+=== Sample 1: Simple Text ===
+Hello World
+
+=== Sample 2: Empty String ===
+
+
+=== Sample 3: Text with Numbers ===
+Test123456
+
+=== Sample 4: Text with Special Characters ===
+Hello@World#2024$Test%Value
+
+=== Sample 5: JSON String ===
+{"name":"John Doe","age":30,"email":"john@example.com","active":true}
+
+=== Sample 6: Password-like String ===
+MySecurePassword123!
+
+=== Sample 7: Long Text ===
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.
+
+=== Sample 8: Multi-line Text ===
+Line 1
+Line 2
+Line 3
+Line 4
+
+=== Sample 9: URL String ===
+https://example.com/api/v1/users/123?filter=active&sort=name&page=1&limit=20
+
+=== Sample 10: Base64 String ===
+SGVsbG8gV29ybGQ=
+
+=== Sample 11: Unicode Text ===
+José München こんにちは Здравствуй
+
+=== Sample 12: SQL Query ===
+SELECT * FROM users WHERE email = 'john@example.com' AND status = 'active'
+
+=== Sample 13: XML String ===
+<user><name>John</name><age>30</age><email>john@example.com</email></user>
+
+=== Sample 14: YAML String ===
+name: John Doe
+age: 30
+email: john@example.com
+active: true
+
+=== Sample 15: Code Snippet ===
+function test() {
+  console.log("Hello World");
+  return true;
+}
+

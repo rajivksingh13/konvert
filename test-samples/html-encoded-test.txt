@@ -1,0 +1,30 @@
+HTML Entity Encoded Test Samples (for decoding)
+
+=== Sample 1: Basic Encoded HTML ===
+&lt;div&gt;Hello World&lt;/div&gt;
+&lt;p&gt;This is a paragraph&lt;/p&gt;
+
+=== Sample 2: Encoded with Entities ===
+&amp;lt;div&amp;gt;Test&amp;lt;/div&amp;gt;
+&lt;p&gt;Price: $19.99 &amp; Shipping: $5.00&lt;/p&gt;
+
+=== Sample 3: Encoded Quotes ===
+&lt;div class=&quot;container&quot;&gt;
+  &lt;p&gt;He said &quot;Hello&quot; to me&lt;/p&gt;
+  &lt;p&gt;She said &apos;Hi&apos; back&lt;/p&gt;
+&lt;/div&gt;
+
+=== Sample 4: Encoded Special Characters ===
+&lt;p&gt;Copyright &amp;copy; 2024&lt;/p&gt;
+&lt;div&gt;Price: $19.99 &amp;amp; Shipping: $5.00&lt;/div&gt;
+
+=== Sample 5: Encoded with Numeric Entities ===
+&lt;p&gt;Jos&#233; &amp; M&#252;nchen&lt;/p&gt;
+&lt;div&gt;&#12354;&#12435;&#12394;&#12383;&#12399;&lt;/div&gt;
+
+=== Sample 6: Mixed Encoded Content ===
+&lt;div&gt;
+  &lt;h1&gt;Title &amp;amp; Subtitle&lt;/h1&gt;
+  &lt;p&gt;Text with &quot;quotes&quot; and &apos;apostrophes&apos;&lt;/p&gt;
+&lt;/div&gt;
+

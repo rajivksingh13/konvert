@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package com.konvert;
+
+option java_package = "com.konvert.proto";
+option java_outer_classname = "PersonProto";
+
+message Person {
+  string name = 1;
+  int32 age = 2;
+  string email = 3;
+  Address address = 4;
+  repeated PhoneNumber phone_numbers = 5;
+  bool is_active = 6;
+  repeated string tags = 7;
+  Metadata metadata = 8;
+}
+
+message Address {
+  string street = 1;
+  string city = 2;
+  string state = 3;
+  string zip_code = 4;
+}
+
+message PhoneNumber {
+  string type = 1;
+  string number = 2;
+}
+
+message Metadata {
+  string created_at = 1;
+  string last_modified = 2;
+  int32 version = 3;
+}
+

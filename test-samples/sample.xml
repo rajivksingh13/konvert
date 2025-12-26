@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<person>
+    <name>John Doe</name>
+    <age>30</age>
+    <email>john.doe@example.com</email>
+    <address>
+        <street>123 Main St</street>
+        <city>New York</city>
+        <state>NY</state>
+        <zipCode>10001</zipCode>
+    </address>
+    <phoneNumbers>
+        <phone>
+            <type>home</type>
+            <number>555-1234</number>
+        </phone>
+        <phone>
+            <type>work</type>
+            <number>555-5678</number>
+        </phone>
+    </phoneNumbers>
+    <isActive>true</isActive>
+    <tags>
+        <tag>developer</tag>
+        <tag>java</tag>
+        <tag>javafx</tag>
+    </tags>
+    <metadata>
+        <createdAt>2024-01-15T10:30:00Z</createdAt>
+        <lastModified>2024-12-22T18:00:00Z</lastModified>
+        <version>1</version>
+    </metadata>
+</person>
+
