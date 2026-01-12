@@ -1,0 +1,216 @@
+name: Build Windows EXE Distribution
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.0)'
+        required: false
+        default: '1.0.0'
+
+jobs:
+  build-windows-exe:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        architecture: x64
+    
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install frontend dependencies
+      working-directory: ./frontend
+      run: npm ci
+    
+    - name: Build frontend
+      working-directory: ./frontend
+      run: npm run build
+    
+    - name: Deploy frontend to static resources
+      working-directory: ./frontend
+      run: node deploy.js
+    
+    - name: Build Spring Boot application
+      run: mvn clean package -DskipTests
+    
+    - name: Verify JAR exists
+      run: |
+        $jarFile = Get-ChildItem "target\konvertr-*.jar" | Where-Object { 
+          $_.Name -notlike "*-sources.jar" -and 
+          $_.Name -notlike "*-javadoc.jar" -and 
+          $_.Name -notlike "*-original.jar" 
+        } | Select-Object -First 1
+        
+        if ($null -eq $jarFile) {
+          Write-Host "ERROR: JAR file not found!"
+          exit 1
+        }
+        
+        Write-Host "Found JAR: $($jarFile.Name)"
+        $jarName = $jarFile.Name
+    
+    - name: Install WiX Toolset
+      run: |
+        Write-Host "Installing WiX Toolset..."
+        choco install wix --version=3.11.2 -y
+        $env:PATH += ";C:\Program Files (x86)\WiX Toolset v3.11\bin"
+        Write-Host "WiX installed"
+    
+    - name: Create Windows EXE installer
+      run: |
+        $version = "1.0.0"
+        if ($env:GITHUB_REF -like "refs/tags/v*") {
+            $version = $env:GITHUB_REF -replace "refs/tags/v", ""
+        }
+        
+        $jarFile = Get-ChildItem "target\konvertr-*.jar" | Where-Object { 
+          $_.Name -notlike "*-sources.jar" -and 
+          $_.Name -notlike "*-javadoc.jar" -and 
+          $_.Name -notlike "*-original.jar" 
+        } | Select-Object -First 1
+        
+        $jarName = $jarFile.Name
+        
+        Write-Host "Creating Windows EXE installer..."
+        Write-Host "JAR: $jarName"
+        Write-Host "Version: $version"
+        
+        jpackage --input target `
+            --name KonvertR `
+            --main-jar $jarName `
+            --type exe `
+            --app-version $version `
+            --description "KonvertR - Universal Format Converter" `
+            --vendor "KonvertR" `
+            --copyright "Copyright 2024 KonvertR" `
+            --win-dir-chooser `
+            --win-menu `
+            --win-shortcut `
+            --win-menu-group "KonvertR" `
+            --win-per-user-install `
+            --dest dist `
+            --java-options "-Xmx512m" `
+            --java-options "-Dserver.port=8080"
+        
+        if ($LASTEXITCODE -ne 0) {
+          Write-Host "ERROR: jpackage failed!"
+          exit 1
+        }
+    
+    - name: Verify EXE created
+      run: |
+        $exeFile = Get-ChildItem "dist\KonvertR*.exe" | Select-Object -First 1
+        if ($null -eq $exeFile) {
+          Write-Host "ERROR: EXE file not found!"
+          exit 1
+        }
+        Write-Host "EXE created: $($exeFile.Name)"
+        Write-Host "Size: $([math]::Round($exeFile.Length/1MB, 2)) MB"
+    
+    - name: Create distribution package
+      run: |
+        $version = "1.0.0"
+        if ($env:GITHUB_REF -like "refs/tags/v*") {
+            $version = $env:GITHUB_REF -replace "refs/tags/v", ""
+        }
+        
+        $exeFile = Get-ChildItem "dist\KonvertR*.exe" | Select-Object -First 1
+        
+        # Create distribution directory with only the EXE
+        New-Item -ItemType Directory -Path "dist\KonvertR-Windows-$version" -Force | Out-Null
+        
+        # Copy only the EXE file
+        Copy-Item $exeFile.FullName -Destination "dist\KonvertR-Windows-$version\KonvertR-Setup-$version.exe"
+        
+        # Create README
+        $readme = @"
+# KonvertR - Universal Format Converter
+
+## Installation
+
+1. Run KonvertR-Setup-$version.exe
+2. Follow the installation wizard
+3. Launch from Start Menu or Desktop shortcut
+
+## System Requirements
+
+- Windows 10 or later
+- 200 MB free disk space
+
+## Features
+
+- Convert between JSON, YAML, TOML, XML, CSV, Protobuf, Properties formats
+- Format and beautify data
+- Encode/Decode utilities
+- File upload and processing
+- All features work offline
+
+Version: $version
+"@
+        Set-Content -Path "dist\KonvertR-Windows-$version\README.txt" -Value $readme -Encoding UTF8
+    
+    - name: Create ZIP distribution
+      run: |
+        $version = "1.0.0"
+        if ($env:GITHUB_REF -like "refs/tags/v*") {
+            $version = $env:GITHUB_REF -replace "refs/tags/v", ""
+        }
+        
+        $zipName = "KonvertR-Windows-$version.zip"
+        Compress-Archive -Path "dist\KonvertR-Windows-$version\*" -DestinationPath "dist\$zipName" -Force
+        Write-Host "Created: dist\$zipName"
+        Get-Item "dist\$zipName" | Select-Object Name, @{Name="Size(MB)";Expression={[math]::Round($_.Length/1MB, 2)}}
+    
+    - name: Upload Windows EXE distribution
+      uses: actions/upload-artifact@v4
+      with:
+        name: KonvertR-Windows-EXE
+        path: dist/KonvertR-Windows-*.zip
+        retention-days: 30
+    
+    - name: Create GitHub Release (on tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/KonvertR-Windows-*.zip
+        body: |
+          ## KonvertR Windows EXE Distribution
+          
+          ### Installation
+          1. Download and extract the ZIP file
+          2. Run `KonvertR-Setup-{version}.exe`
+          3. Follow the installation wizard
+          
+          ### System Requirements
+          - Windows 10 or later
+          - 200 MB free disk space
+          
+          **Note:** This is a Windows installer. The application will be installed to Program Files.
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

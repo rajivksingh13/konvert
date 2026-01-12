@@ -1,0 +1,16 @@
+/* App layout styles - using Tailwind utilities */
+.app-container {
+  @apply min-h-screen flex flex-col bg-[var(--bg-page)];
+}
+
+.main-content {
+  @apply flex-1 w-full;
+}
+
+.main-content > *:not(.full-width) {
+  @apply p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto;
+}
+
+.main-content > .full-width {
+  @apply w-full px-4 sm:px-6 lg:px-8;
+}

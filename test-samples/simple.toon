@@ -1,0 +1,4 @@
+id: 123
+name: "Alice"
+active: true
+email: "alice@example.com"

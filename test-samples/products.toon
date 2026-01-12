@@ -1,0 +1,4 @@
+products[3]{id, name, price, inStock}:
+  1, "Laptop", 999.99, true
+  2, "Mouse", 29.99, true
+  3, "Keyboard", 79.99, false

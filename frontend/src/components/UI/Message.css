@@ -1,0 +1,20 @@
+.error-message {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--error-bg);
+    border: 1px solid var(--error-color);
+    border-radius: var(--radius-md);
+    color: var(--error-color);
+    font-weight: 500;
+}
+
+.success-message {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--success-bg);
+    border: 1px solid var(--success-color);
+    border-radius: var(--radius-md);
+    color: var(--success-color);
+    font-weight: 500;
+}
+

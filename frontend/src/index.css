@@ -1,0 +1,123 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --primary-color: #667eea;
+    --secondary-color: #764ba2;
+    --bg-primary: #f1f5f9;
+    --bg-secondary: #e8edf2;
+    --bg-tertiary: #dce4eb;
+    --bg-page: #f8fafc;
+    --bg-card: #ffffff;
+    --text-primary: #0f172a;
+    --text-secondary: #1e293b;
+    --text-muted: #475569;
+    --border-color: #c1cad4;
+    --border-hover: #8495a8;
+    --success-color: #10b981;
+    --error-color: #ef4444;
+    --warning-color: #f59e0b;
+    --error-bg: rgba(239, 68, 68, 0.1);
+    --success-bg: rgba(16, 185, 129, 0.1);
+    --focus-shadow: 0 0 0 3px rgba(102, 126, 234, 0.18);
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.14), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.16), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.18), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 18px;
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  [data-theme="dark"] {
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-tertiary: #334155;
+    --bg-page: #020617;
+    --bg-card: #1e293b;
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+    --border-color: #334155;
+    --border-hover: #475569;
+    --success-color: #10b981;
+    --error-color: #ef4444;
+    --warning-color: #f59e0b;
+    --error-bg: rgba(239, 68, 68, 0.2);
+    --success-bg: rgba(16, 185, 129, 0.2);
+    --focus-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.5);
+  }
+
+
+  body {
+    @apply bg-[var(--bg-page)] text-[var(--text-primary)] font-sans antialiased;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  code {
+    @apply font-mono;
+  }
+}
+
+@layer components {
+  .glass-effect {
+    @apply backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border border-white/20;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary-500 to-secondary-500 bg-clip-text text-transparent;
+  }
+
+  .card-modern {
+    @apply bg-[var(--bg-card)] rounded-2xl shadow-soft border border-[var(--border-color)] 
+           transition-all duration-300 hover:shadow-medium hover:border-[var(--border-hover)];
+  }
+
+  .btn-modern {
+    @apply px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 
+           transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 
+           focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none;
+  }
+
+  .btn-primary-modern {
+    @apply btn-modern bg-gradient-to-r from-primary-500 to-secondary-500 text-white 
+           shadow-lg hover:shadow-glow focus:ring-primary-500;
+  }
+
+  .btn-secondary-modern {
+    @apply btn-modern bg-[var(--bg-card)] text-[var(--text-primary)] border border-[var(--border-color)]
+           hover:bg-[var(--bg-secondary)] hover:border-[var(--border-hover)] focus:ring-[var(--border-color)];
+  }
+
+  .input-modern {
+    @apply w-full px-4 py-3 rounded-xl border border-[var(--border-color)] 
+           bg-[var(--bg-card)] text-[var(--text-primary)] 
+           transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500
+           placeholder:text-[var(--text-muted)];
+  }
+
+  .textarea-modern {
+    @apply input-modern font-mono text-sm resize-none min-h-[300px] 
+           focus:ring-2 focus:ring-primary-500/20;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+#root {
+  @apply min-h-screen flex flex-col;
+}

@@ -1,0 +1,15 @@
+name: "John Doe"
+age: 30
+email: "john@example.com"
+active: true
+address:
+  street: "123 Main St"
+  city: "Springfield"
+  state: "IL"
+  zip: "62701"
+tags[3]: "developer", "javascript", "nodejs"
+settings:
+  theme: "dark"
+  notifications: true
+  language: "en"
+

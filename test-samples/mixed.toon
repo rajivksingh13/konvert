@@ -1,0 +1,13 @@
+metadata:
+  title: "Sample Document"
+  author: "John Doe"
+  tags[3]: "tech", "tutorial", "example"
+  stats:
+    views: 1250
+    likes: 45
+    comments: 12
+content:
+  sections[3]{heading, text, order}:
+    "Introduction", "Welcome to this example", 1
+    "Main Content", "This is the main section", 2
+    "Conclusion", "Thank you for reading", 3

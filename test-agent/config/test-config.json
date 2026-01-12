@@ -1,0 +1,35 @@
+{
+  "application": {
+    "url": "http://localhost:8080",
+    "apiBaseUrl": "http://localhost:8080/api",
+    "startupTimeout": 30000,
+    "shutdownTimeout": 10000,
+    "healthCheckEndpoint": "/api/health"
+  },
+  "tests": {
+    "timeout": 30000,
+    "retries": 2,
+    "screenshotOnFailure": true,
+    "videoOnFailure": false
+  },
+  "performance": {
+    "maxResponseTime": 1000,
+    "maxMemoryUsage": 512,
+    "largeFileSize": 1048576
+  },
+  "categories": {
+    "converter": true,
+    "formatter": true,
+    "utilities": true,
+    "file-operations": true,
+    "compare-diff": true,
+    "desktop": true
+  },
+  "testData": {
+    "basePath": "../test-samples",
+    "validPath": "test-data/valid",
+    "invalidPath": "test-data/invalid",
+    "edgeCasesPath": "test-data/edge-cases"
+  }
+}
+

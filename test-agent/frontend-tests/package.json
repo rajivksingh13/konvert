@@ -1,0 +1,21 @@
+{
+  "name": "konvertr-test-agent-frontend",
+  "version": "1.0.0",
+  "description": "Frontend E2E tests for KonvertR",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:converter": "playwright test converter",
+    "test:formatter": "playwright test formatter",
+    "test:utilities": "playwright test utilities",
+    "test:files": "playwright test file-operations",
+    "test:smoke": "playwright test --grep @smoke",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  }
+}
+

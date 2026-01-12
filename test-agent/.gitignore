@@ -1,0 +1,24 @@
+# Test reports
+reports/
+*.log
+
+# Node modules
+frontend-tests/node_modules/
+
+# Maven
+backend-tests/target/
+backend-tests/.mvn/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+*.tmp
+*.bak
+
