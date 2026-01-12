@@ -123,12 +123,12 @@ jobs:
         cp "$DMG_FILE" "dist/KonvertR-macOS-$VERSION/$DMG_NAME"
         
         # Create README
-        cat > "dist/KonvertR-macOS-$VERSION/README.txt" << EOF
+        cat > "dist/KonvertR-macOS-$VERSION/README.txt" << 'HEREDOC_EOF'
 # KonvertR - Universal Format Converter
 
 ## Installation
 
-1. Open KonvertR-$VERSION.dmg
+1. Open KonvertR-VERSION_PLACEHOLDER.dmg
 2. Drag KonvertR.app to Applications folder
 3. Launch from Applications or Launchpad
 
@@ -152,8 +152,11 @@ On first launch, you may see a security warning:
 2. Or go to System Preferences > Security & Privacy > General
 3. Click "Open Anyway"
 
-Version: $VERSION
-EOF
+Version: VERSION_PLACEHOLDER
+HEREDOC_EOF
+        
+        # Replace version placeholder
+        sed -i '' "s/VERSION_PLACEHOLDER/$VERSION/g" "dist/KonvertR-macOS-$VERSION/README.txt"
     
     - name: Create ZIP distribution
       run: |

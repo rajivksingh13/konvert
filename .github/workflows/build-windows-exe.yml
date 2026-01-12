@@ -147,31 +147,31 @@ jobs:
         Copy-Item $exeFile.FullName -Destination "dist\KonvertR-Windows-$version\KonvertR-Setup-$version.exe"
         
         # Create README
-        $readme = @"
-# KonvertR - Universal Format Converter
-
-## Installation
-
-1. Run KonvertR-Setup-$version.exe
-2. Follow the installation wizard
-3. Launch from Start Menu or Desktop shortcut
-
-## System Requirements
-
-- Windows 10 or later
-- 200 MB free disk space
-
-## Features
-
-- Convert between JSON, YAML, TOML, XML, CSV, Protobuf, Properties formats
-- Format and beautify data
-- Encode/Decode utilities
-- File upload and processing
-- All features work offline
-
-Version: $version
-"@
-        Set-Content -Path "dist\KonvertR-Windows-$version\README.txt" -Value $readme -Encoding UTF8
+        $readmeLines = @(
+            "# KonvertR - Universal Format Converter",
+            "",
+            "## Installation",
+            "",
+            "1. Run KonvertR-Setup-$version.exe",
+            "2. Follow the installation wizard",
+            "3. Launch from Start Menu or Desktop shortcut",
+            "",
+            "## System Requirements",
+            "",
+            "- Windows 10 or later",
+            "- 200 MB free disk space",
+            "",
+            "## Features",
+            "",
+            "- Convert between JSON, YAML, TOML, XML, CSV, Protobuf, Properties formats",
+            "- Format and beautify data",
+            "- Encode/Decode utilities",
+            "- File upload and processing",
+            "- All features work offline",
+            "",
+            "Version: $version"
+        )
+        $readmeLines | Out-File -FilePath "dist\KonvertR-Windows-$version\README.txt" -Encoding UTF8
     
     - name: Create ZIP distribution
       run: |
