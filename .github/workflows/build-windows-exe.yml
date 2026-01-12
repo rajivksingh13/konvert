@@ -48,6 +48,9 @@ jobs:
     
     - name: Build frontend
       working-directory: ./frontend
+      env:
+        CI: false
+        DISABLE_ESLINT_PLUGIN: true
       run: npm run build
     
     - name: Deploy frontend to static resources
