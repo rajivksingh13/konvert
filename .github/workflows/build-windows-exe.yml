@@ -79,12 +79,69 @@ jobs:
     - name: Install WiX Toolset
       run: |
         Write-Host "Installing WiX Toolset..."
-        choco install wix --version=3.11.2 -y
-        $env:PATH += ";C:\Program Files (x86)\WiX Toolset v3.11\bin"
-        Write-Host "WiX installed"
+        
+        # Try Chocolatey first
+        choco install wixtoolset -y 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+          Write-Host "WiX installed via Chocolatey"
+        } else {
+          Write-Host "Chocolatey install failed, downloading WiX directly..."
+          $wixUrl = "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip"
+          $wixZip = "$env:TEMP\wix.zip"
+          $wixDir = "$env:TEMP\wix"
+          
+          Invoke-WebRequest -Uri $wixUrl -OutFile $wixZip -UseBasicParsing
+          Expand-Archive -Path $wixZip -DestinationPath $wixDir -Force
+          $env:PATH += ";$wixDir"
+          Write-Host "WiX downloaded and extracted"
+        }
+        
+        # Find WiX installation
+        $wixPaths = @(
+          "C:\Program Files (x86)\WiX Toolset v3.11\bin",
+          "C:\Program Files (x86)\WiX Toolset v3.14\bin",
+          "$env:TEMP\wix"
+        )
+        
+        $wixFound = $false
+        foreach ($path in $wixPaths) {
+          if (Test-Path "$path\candle.exe") {
+            $env:PATH = "$path;$env:PATH"
+            Write-Host "WiX found at: $path"
+            $wixFound = $true
+            break
+          }
+        }
+        
+        if (-not $wixFound) {
+          Write-Host "ERROR: WiX Toolset not found!"
+          exit 1
+        }
+        
+        # Verify WiX works
+        candle -? 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 1) {
+          Write-Host "ERROR: WiX Toolset verification failed!"
+          exit 1
+        }
+        Write-Host "WiX Toolset verified and ready"
     
     - name: Create Windows EXE installer
       run: |
+        # Ensure WiX is in PATH
+        $wixPaths = @(
+          "C:\Program Files (x86)\WiX Toolset v3.11\bin",
+          "C:\Program Files (x86)\WiX Toolset v3.14\bin",
+          "$env:TEMP\wix"
+        )
+        
+        foreach ($path in $wixPaths) {
+          if (Test-Path "$path\candle.exe") {
+            $env:PATH = "$path;$env:PATH"
+            break
+          }
+        }
+        
         $version = "1.0.0"
         if ($env:GITHUB_REF -like "refs/tags/v*") {
             $version = $env:GITHUB_REF -replace "refs/tags/v", ""
@@ -101,6 +158,15 @@ jobs:
         Write-Host "Creating Windows EXE installer..."
         Write-Host "JAR: $jarName"
         Write-Host "Version: $version"
+        Write-Host "WiX PATH: $env:PATH"
+        
+        # Verify WiX is accessible
+        $candleCheck = Get-Command candle -ErrorAction SilentlyContinue
+        if ($candleCheck) {
+          Write-Host "WiX candle found at: $($candleCheck.Source)"
+        } else {
+          Write-Host "WARNING: WiX candle not found in PATH, jpackage may fail"
+        }
         
         jpackage --input target `
             --name KonvertR `
@@ -120,19 +186,52 @@ jobs:
             --java-options "-Dserver.port=8080"
         
         if ($LASTEXITCODE -ne 0) {
-          Write-Host "ERROR: jpackage failed!"
-          exit 1
+          Write-Host "ERROR: jpackage failed with EXE type!"
+          Write-Host "This might be due to WiX Toolset not being found."
+          Write-Host "Trying app-image type instead (no WiX needed)..."
+          
+          # Fallback to app-image if exe fails
+          jpackage --input target `
+              --name KonvertR `
+              --main-jar $jarName `
+              --type app-image `
+              --app-version $version `
+              --description "KonvertR - Universal Format Converter" `
+              --vendor "KonvertR" `
+              --copyright "Copyright 2024 KonvertR" `
+              --dest dist `
+              --java-options "-Xmx512m" `
+              --java-options "-Dserver.port=8080"
+          
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "ERROR: jpackage failed with app-image as well!"
+            exit 1
+          }
+          
+          Write-Host "Created app-image instead of installer EXE"
+          "app-image" | Out-File -FilePath "$env:GITHUB_WORKSPACE\build-type.txt"
+        } else {
+          "exe" | Out-File -FilePath "$env:GITHUB_WORKSPACE\build-type.txt"
         }
     
-    - name: Verify EXE created
+    - name: Verify executable created
       run: |
-        $exeFile = Get-ChildItem "dist\KonvertR*.exe" | Select-Object -First 1
-        if ($null -eq $exeFile) {
-          Write-Host "ERROR: EXE file not found!"
+        $buildType = Get-Content "$env:GITHUB_WORKSPACE\build-type.txt" -ErrorAction SilentlyContinue
+        if (-not $buildType) { $buildType = "exe" }
+        
+        $exeFile = Get-ChildItem "dist\KonvertR*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+        $appImage = Test-Path "dist\KonvertR"
+        
+        if ($buildType -eq "exe" -and $exeFile) {
+          Write-Host "EXE installer created: $($exeFile.Name)"
+          Write-Host "Size: $([math]::Round($exeFile.Length/1MB, 2)) MB"
+        } elseif ($buildType -eq "app-image" -and $appImage) {
+          Write-Host "App-image created (fallback - WiX not available)"
+          Write-Host "Location: dist\KonvertR"
+        } else {
+          Write-Host "ERROR: No executable file found!"
           exit 1
         }
-        Write-Host "EXE created: $($exeFile.Name)"
-        Write-Host "Size: $([math]::Round($exeFile.Length/1MB, 2)) MB"
     
     - name: Create distribution package
       run: |
@@ -141,40 +240,88 @@ jobs:
             $version = $env:GITHUB_REF -replace "refs/tags/v", ""
         }
         
-        $exeFile = Get-ChildItem "dist\KonvertR*.exe" | Select-Object -First 1
+        $buildType = Get-Content "$env:GITHUB_WORKSPACE\build-type.txt" -ErrorAction SilentlyContinue
+        if (-not $buildType) { $buildType = "exe" }
         
-        # Create distribution directory with only the EXE
-        New-Item -ItemType Directory -Path "dist\KonvertR-Windows-$version" -Force | Out-Null
+        $distDir = "dist\KonvertR-Windows-$version"
+        New-Item -ItemType Directory -Path $distDir -Force | Out-Null
         
-        # Copy only the EXE file
-        Copy-Item $exeFile.FullName -Destination "dist\KonvertR-Windows-$version\KonvertR-Setup-$version.exe"
+        if ($buildType -eq "exe") {
+          # EXE installer was created
+          $exeFile = Get-ChildItem "dist\KonvertR*.exe" | Select-Object -First 1
+          Copy-Item $exeFile.FullName -Destination "$distDir\KonvertR-Setup-$version.exe"
+          Write-Host "Packaged EXE installer"
+        } else {
+          # App-image was created (fallback)
+          $appImageDir = "dist\KonvertR"
+          if (Test-Path $appImageDir) {
+            # Copy the entire app-image folder
+            Copy-Item -Path "$appImageDir\*" -Destination $distDir -Recurse -Force
+            Write-Host "Packaged app-image (portable application)"
+            Write-Host "NOTE: This is a portable folder, not a single EXE installer"
+            Write-Host "Users run: KonvertR\KonvertR.exe"
+          } else {
+            Write-Host "ERROR: No executable found!"
+            exit 1
+          }
+        }
         
-        # Create README
-        $readmeLines = @(
-            "# KonvertR - Universal Format Converter",
-            "",
-            "## Installation",
-            "",
-            "1. Run KonvertR-Setup-$version.exe",
-            "2. Follow the installation wizard",
-            "3. Launch from Start Menu or Desktop shortcut",
-            "",
-            "## System Requirements",
-            "",
-            "- Windows 10 or later",
-            "- 200 MB free disk space",
-            "",
-            "## Features",
-            "",
-            "- Convert between JSON, YAML, TOML, XML, CSV, Protobuf, Properties formats",
-            "- Format and beautify data",
-            "- Encode/Decode utilities",
-            "- File upload and processing",
-            "- All features work offline",
-            "",
-            "Version: $version"
-        )
-        $readmeLines | Out-File -FilePath "dist\KonvertR-Windows-$version\README.txt" -Encoding UTF8
+        # Create README based on build type
+        $buildType = Get-Content "$env:GITHUB_WORKSPACE\build-type.txt" -ErrorAction SilentlyContinue
+        if (-not $buildType) { $buildType = "exe" }
+        
+        if ($buildType -eq "exe") {
+          $readmeLines = @(
+              "# KonvertR - Universal Format Converter",
+              "",
+              "## Installation",
+              "",
+              "1. Run KonvertR-Setup-$version.exe",
+              "2. Follow the installation wizard",
+              "3. Launch from Start Menu or Desktop shortcut",
+              "",
+              "## System Requirements",
+              "",
+              "- Windows 10 or later",
+              "- 200 MB free disk space",
+              "",
+              "## Features",
+              "",
+              "- Convert between JSON, YAML, TOML, XML, CSV, Protobuf, Properties formats",
+              "- Format and beautify data",
+              "- Encode/Decode utilities",
+              "- File upload and processing",
+              "- All features work offline",
+              "",
+              "Version: $version"
+          )
+        } else {
+          $readmeLines = @(
+              "# KonvertR - Universal Format Converter",
+              "",
+              "## Installation",
+              "",
+              "1. Extract this ZIP file to your desired location",
+              "2. Navigate to the KonvertR folder",
+              "3. Double-click KonvertR.exe to run",
+              "",
+              "## System Requirements",
+              "",
+              "- Windows 10 or later",
+              "- 200 MB free disk space",
+              "",
+              "## Features",
+              "",
+              "- Convert between JSON, YAML, TOML, XML, CSV, Protobuf, Properties formats",
+              "- Format and beautify data",
+              "- Encode/Decode utilities",
+              "- File upload and processing",
+              "- All features work offline",
+              "",
+              "Version: $version"
+          )
+        }
+        $readmeLines | Out-File -FilePath "$distDir\README.txt" -Encoding UTF8
     
     - name: Create ZIP distribution
       run: |
