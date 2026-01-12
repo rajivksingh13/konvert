@@ -68,6 +68,9 @@ public class FileUploadController {
                     case "csv":
                         toFormat = "json";
                         break;
+                    case "toon":
+                        toFormat = "json";
+                        break;
                     default:
                         toFormat = "json";
                 }

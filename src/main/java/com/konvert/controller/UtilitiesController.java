@@ -335,10 +335,12 @@ public class UtilitiesController {
         try {
             String input = request.get("input");
             String fieldsToRemove = request.get("fieldsToRemove");
+            String inputFormat = request.get("inputFormat");
+            String outputFormat = request.get("outputFormat");
             
             if (input == null || input.trim().isEmpty()) {
                 response.put("success", false);
-                response.put("error", "Input JSON is required");
+                response.put("error", "Input data is required");
                 return ResponseEntity.badRequest().body(response);
             }
             
@@ -348,7 +350,15 @@ public class UtilitiesController {
                 return ResponseEntity.badRequest().body(response);
             }
             
-            String result = DataTransformUtil.filterFields(input, fieldsToRemove);
+            // Use defaults if not provided (backward compatibility)
+            if (inputFormat == null || inputFormat.trim().isEmpty()) {
+                inputFormat = "json";
+            }
+            if (outputFormat == null || outputFormat.trim().isEmpty()) {
+                outputFormat = inputFormat; // Default to same format as input
+            }
+            
+            String result = DataTransformUtil.filterFields(input, inputFormat, outputFormat, fieldsToRemove);
             
             response.put("success", true);
             response.put("output", result);
@@ -368,10 +378,12 @@ public class UtilitiesController {
         try {
             String input = request.get("input");
             String typeMap = request.get("typeMap");
+            String inputFormat = request.get("inputFormat");
+            String outputFormat = request.get("outputFormat");
             
             if (input == null || input.trim().isEmpty()) {
                 response.put("success", false);
-                response.put("error", "Input JSON is required");
+                response.put("error", "Input data is required");
                 return ResponseEntity.badRequest().body(response);
             }
             
@@ -381,7 +393,15 @@ public class UtilitiesController {
                 return ResponseEntity.badRequest().body(response);
             }
             
-            String result = DataTransformUtil.convertTypes(input, typeMap);
+            // Use defaults if not provided (backward compatibility)
+            if (inputFormat == null || inputFormat.trim().isEmpty()) {
+                inputFormat = "json";
+            }
+            if (outputFormat == null || outputFormat.trim().isEmpty()) {
+                outputFormat = inputFormat; // Default to same format as input
+            }
+            
+            String result = DataTransformUtil.convertTypes(input, inputFormat, outputFormat, typeMap);
             
             response.put("success", true);
             response.put("output", result);

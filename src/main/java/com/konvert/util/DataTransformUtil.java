@@ -402,22 +402,36 @@ public class DataTransformUtil {
     }
     
     /**
-     * Filter/Remove fields from JSON
+     * Filter/Remove fields from JSON or YAML (supports multiple formats)
      */
-    public static String filterFields(String jsonString, String fieldsToRemove) {
-        if (jsonString == null || jsonString.trim().isEmpty()) {
-            throw new IllegalArgumentException("JSON string cannot be empty");
+    public static String filterFields(String input, String inputFormat, String outputFormat, String fieldsToRemove) {
+        if (input == null || input.trim().isEmpty()) {
+            throw new IllegalArgumentException("Input cannot be empty");
         }
         
         if (fieldsToRemove == null || fieldsToRemove.trim().isEmpty()) {
             throw new IllegalArgumentException("Fields to remove cannot be empty");
         }
         
+        if (inputFormat == null || inputFormat.trim().isEmpty()) {
+            inputFormat = "json";
+        }
+        
+        if (outputFormat == null || outputFormat.trim().isEmpty()) {
+            outputFormat = "json";
+        }
+        
         try {
-            JsonNode root = mapper.readTree(jsonString);
-            Set<String> fieldsSet = new HashSet<>();
+            // Convert input to JSON first (intermediate format)
+            String jsonString;
+            if (!"json".equalsIgnoreCase(inputFormat)) {
+                jsonString = FormatConverter.convert(input, inputFormat, "json", null);
+            } else {
+                jsonString = input;
+            }
             
-            // Parse fields (comma-separated or JSON array)
+            // Parse fields to remove (comma-separated or JSON array)
+            Set<String> fieldsSet = new HashSet<>();
             if (fieldsToRemove.trim().startsWith("[")) {
                 JsonNode fieldsArray = mapper.readTree(fieldsToRemove);
                 if (fieldsArray.isArray()) {
@@ -432,11 +446,27 @@ public class DataTransformUtil {
                 }
             }
             
+            // Filter the JSON structure
+            JsonNode root = mapper.readTree(jsonString);
             JsonNode result = filterFieldsRecursive(root, fieldsSet);
-            return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(result);
+            String filteredJson = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(result);
+            
+            // Convert to output format if needed
+            if (!"json".equalsIgnoreCase(outputFormat)) {
+                return FormatConverter.convert(filteredJson, "json", outputFormat, null);
+            }
+            
+            return filteredJson;
         } catch (Exception e) {
             throw new RuntimeException("Field filtering failed: " + e.getMessage(), e);
         }
+    }
+    
+    /**
+     * Filter/Remove fields from JSON (backward compatibility method)
+     */
+    public static String filterFields(String jsonString, String fieldsToRemove) {
+        return filterFields(jsonString, "json", "json", fieldsToRemove);
     }
     
     private static JsonNode filterFieldsRecursive(JsonNode node, Set<String> fieldsToRemove) {
@@ -472,30 +502,61 @@ public class DataTransformUtil {
     }
     
     /**
-     * Convert types in JSON
+     * Convert types in JSON or YAML (supports multiple formats)
      */
-    public static String convertTypes(String jsonString, String typeMapJson) {
-        if (jsonString == null || jsonString.trim().isEmpty()) {
-            throw new IllegalArgumentException("JSON string cannot be empty");
+    public static String convertTypes(String input, String inputFormat, String outputFormat, String typeMapJson) {
+        if (input == null || input.trim().isEmpty()) {
+            throw new IllegalArgumentException("Input cannot be empty");
         }
         
         if (typeMapJson == null || typeMapJson.trim().isEmpty()) {
             throw new IllegalArgumentException("Type map cannot be empty");
         }
         
+        if (inputFormat == null || inputFormat.trim().isEmpty()) {
+            inputFormat = "json";
+        }
+        
+        if (outputFormat == null || outputFormat.trim().isEmpty()) {
+            outputFormat = inputFormat; // Default to same format as input
+        }
+        
         try {
-            JsonNode root = mapper.readTree(jsonString);
-            JsonNode typeMap = mapper.readTree(typeMapJson);
+            // Convert input to JSON first (intermediate format)
+            String jsonString;
+            if (!"json".equalsIgnoreCase(inputFormat)) {
+                jsonString = FormatConverter.convert(input, inputFormat, "json", null);
+            } else {
+                jsonString = input;
+            }
             
+            // Parse type map
+            JsonNode typeMap = mapper.readTree(typeMapJson);
             if (!typeMap.isObject()) {
                 throw new IllegalArgumentException("Type map must be a JSON object");
             }
             
+            // Convert types in the JSON structure
+            JsonNode root = mapper.readTree(jsonString);
             JsonNode result = convertTypesRecursive(root, typeMap);
-            return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(result);
+            String convertedJson = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(result);
+            
+            // Convert to output format if needed
+            if (!"json".equalsIgnoreCase(outputFormat)) {
+                return FormatConverter.convert(convertedJson, "json", outputFormat, null);
+            }
+            
+            return convertedJson;
         } catch (Exception e) {
             throw new RuntimeException("Type conversion failed: " + e.getMessage(), e);
         }
+    }
+    
+    /**
+     * Convert types in JSON (backward compatibility method)
+     */
+    public static String convertTypes(String jsonString, String typeMapJson) {
+        return convertTypes(jsonString, "json", "json", typeMapJson);
     }
     
     private static JsonNode convertTypesRecursive(JsonNode node, JsonNode typeMap) {

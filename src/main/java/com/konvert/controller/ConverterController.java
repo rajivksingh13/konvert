@@ -1,6 +1,7 @@
 package com.konvert.controller;
 
 import com.konvert.FormatConverter;
+import com.konvert.util.ToonStatisticsUtil;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -55,6 +56,41 @@ public class ConverterController {
             response.put("success", false);
             response.put("error", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+    
+    @PostMapping("/toon/statistics")
+    public ResponseEntity<Map<String, Object>> getToonStatistics(
+            @RequestBody Map<String, String> request) {
+        
+        try {
+            String input = request.get("input");
+            String originalFormat = request.get("originalFormat");
+            
+            if (input == null || input.trim().isEmpty()) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("success", false);
+                error.put("error", "Input data is required");
+                return ResponseEntity.badRequest().body(error);
+            }
+            
+            if (originalFormat == null || originalFormat.trim().isEmpty()) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("success", false);
+                error.put("error", "Original format is required");
+                return ResponseEntity.badRequest().body(error);
+            }
+            
+            // Analyze TOON efficiency
+            Map<String, Object> statistics = ToonStatisticsUtil.analyzeFromOriginal(input, originalFormat);
+            
+            return ResponseEntity.ok(statistics);
+            
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("error", "Failed to calculate statistics: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
 }

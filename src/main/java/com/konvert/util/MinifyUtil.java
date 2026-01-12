@@ -2,12 +2,15 @@ package com.konvert.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import com.konvert.FormatConverter;
 
 import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.Base64;
 import java.util.zip.GZIPOutputStream;
+import java.util.zip.GZIPInputStream;
 
 public class MinifyUtil {
     
@@ -35,6 +38,8 @@ public class MinifyUtil {
                 return minifyXml(input);
             case "css":
                 return minifyCss(input);
+            case "toon":
+                return minifyToon(input);
             default:
                 throw new IllegalArgumentException("Unsupported format for minification: " + format);
         }
@@ -192,6 +197,22 @@ public class MinifyUtil {
             return jsonMapper.writeValueAsString(parsed);
         } catch (Exception e) {
             throw new RuntimeException("Failed to minify JSON: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Minify TOON
+     */
+    private static String minifyToon(String toon) {
+        try {
+            // Convert TOON to JSON (intermediate format)
+            String jsonString = FormatConverter.convert(toon, "toon", "json", null);
+            // Convert back to TOON (will produce compact format)
+            String compactToon = FormatConverter.convert(jsonString, "json", "toon", null);
+            // Remove extra whitespace and line breaks where possible
+            return compactToon.replaceAll("\n\\s*\n", "\n").trim();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to minify TOON: " + e.getMessage(), e);
         }
     }
     
@@ -392,6 +413,69 @@ public class MinifyUtil {
         } catch (Exception e) {
             result.put("success", false);
             result.put("error", "Compression failed: " + e.getMessage());
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Decompress GZIP compressed data from base64 encoded string
+     */
+    public static Map<String, Object> decompressGzip(String base64Input) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        
+        if (base64Input == null || base64Input.trim().isEmpty()) {
+            result.put("success", false);
+            result.put("error", "Input cannot be empty");
+            return result;
+        }
+        
+        try {
+            // Decode base64 to get compressed bytes
+            byte[] compressedBytes;
+            try {
+                compressedBytes = Base64.getDecoder().decode(base64Input.trim());
+            } catch (IllegalArgumentException e) {
+                result.put("success", false);
+                result.put("error", "Invalid Base64 encoded data: " + e.getMessage());
+                return result;
+            }
+            
+            int compressedSize = compressedBytes.length;
+            
+            // Decompress using GZIP
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            try (GZIPInputStream gzis = new GZIPInputStream(new ByteArrayInputStream(compressedBytes))) {
+                byte[] buffer = new byte[1024];
+                int len;
+                while ((len = gzis.read(buffer)) != -1) {
+                    baos.write(buffer, 0, len);
+                }
+            }
+            
+            byte[] decompressed = baos.toByteArray();
+            int decompressedSize = decompressed.length;
+            
+            // Convert to string
+            String decompressedText = new String(decompressed, StandardCharsets.UTF_8);
+            
+            // Calculate expansion ratio
+            double expansionRatio = compressedSize > 0 ? 
+                ((double) decompressedSize / compressedSize - 1.0) * 100 : 0;
+            
+            result.put("success", true);
+            result.put("compressedSize", compressedSize);
+            result.put("decompressedSize", decompressedSize);
+            result.put("expansionRatio", String.format("%.2f%%", expansionRatio));
+            result.put("output", decompressedText);
+            result.put("bytesRestored", decompressedSize - compressedSize);
+            
+        } catch (java.util.zip.ZipException e) {
+            result.put("success", false);
+            result.put("error", "Invalid GZIP format: The input data is not a valid GZIP compressed file");
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("error", "Decompression failed: " + e.getMessage());
         }
         
         return result;

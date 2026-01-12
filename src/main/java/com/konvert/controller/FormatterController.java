@@ -46,6 +46,9 @@ public class FormatterController {
             } else if ("CSV".equalsIgnoreCase(formatType)) {
                 boolean alignColumns = Boolean.parseBoolean(request.getOrDefault("alignColumns", "false"));
                 result = CsvUtil.formatCsv(input, alignColumns);
+            } else if ("TOON".equalsIgnoreCase(formatType)) {
+                String delimiter = request.getOrDefault("delimiter", ",");
+                result = FormatFormatter.formatToon(input, delimiter);
             } else {
                 response.put("success", false);
                 response.put("error", "Unsupported format type: " + formatType);
@@ -168,6 +171,33 @@ public class FormatterController {
             Map<String, Object> compressionResult = MinifyUtil.compressGzip(input);
             
             response.putAll(compressionResult);
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+    
+    @PostMapping("/decompress/gzip")
+    public ResponseEntity<Map<String, Object>> decompressGzip(
+            @RequestBody Map<String, String> request) {
+        
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            String input = request.get("input");
+            
+            if (input == null || input.trim().isEmpty()) {
+                response.put("success", false);
+                response.put("error", "Input data is required");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            Map<String, Object> decompressionResult = MinifyUtil.decompressGzip(input);
+            
+            response.putAll(decompressionResult);
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {

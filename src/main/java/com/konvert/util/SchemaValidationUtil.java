@@ -45,6 +45,8 @@ public class SchemaValidationUtil {
                 return validateXml(input);
             case "toml":
                 return validateToml(input);
+            case "toon":
+                return validateToon(input);
             case "properties":
                 return validateProperties(input);
             default:
@@ -341,6 +343,38 @@ public class SchemaValidationUtil {
             result.put("errors", errors);
             result.put("warnings", warnings);
             result.put("format", "toml");
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Validate TOON structure
+     */
+    private static Map<String, Object> validateToon(String toonString) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        List<String> errors = new ArrayList<>();
+        List<String> warnings = new ArrayList<>();
+        
+        try {
+            // Try to parse TOON - validate structure
+            try {
+                FormatConverter.convert(toonString, "toon", "json", null);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("TOON parsing failed: " + e.getMessage());
+            }
+            
+            result.put("valid", true);
+            result.put("errors", errors);
+            result.put("warnings", warnings);
+            result.put("format", "toon");
+            
+        } catch (Exception e) {
+            errors.add("Invalid TOON syntax: " + e.getMessage());
+            result.put("valid", false);
+            result.put("errors", errors);
+            result.put("warnings", warnings);
+            result.put("format", "toon");
         }
         
         return result;

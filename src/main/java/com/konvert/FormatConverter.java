@@ -82,6 +82,9 @@ public class FormatConverter {
             case "csv":
                 return csvToMap(input);
                 
+            case "toon":
+                return toonToMap(input);
+                
             default:
                 throw new IllegalArgumentException("Unsupported input format: " + format);
         }
@@ -116,6 +119,16 @@ public class FormatConverter {
                 
             case "csv":
                 return mapToCsv(data);
+                
+            case "toon":
+                // TOON conversion expects a Map, but CSV returns a List
+                if (data instanceof List) {
+                    // Convert list to a map with a "rows" key
+                    Map<String, Object> wrapper = new LinkedHashMap<>();
+                    wrapper.put("rows", data);
+                    return mapToToon(wrapper);
+                }
+                return mapToToon((Map<String, Object>) data);
                 
             default:
                 throw new IllegalArgumentException("Unsupported output format: " + format);
@@ -601,6 +614,229 @@ public class FormatConverter {
             .replace(">", "&gt;")
             .replace("\"", "&quot;")
             .replace("'", "&apos;");
+    }
+    
+    // TOON to Map
+    // TOON (Token-Oriented Object Notation) is a compact JSON-compatible format
+    // Since TOON represents the same data model as JSON, we parse it as JSON
+    private static Object toonToMap(String toonString) throws Exception {
+        if (toonString == null || toonString.trim().isEmpty()) {
+            throw new IllegalArgumentException("TOON input cannot be empty");
+        }
+        
+        try {
+            // TOON format is JSON-compatible, so we can parse it as JSON
+            // TOON may use slightly different syntax but represents the same data structure
+            String normalized = normalizeToonToJson(toonString);
+            return jsonMapper.readValue(normalized, Object.class);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse TOON: " + e.getMessage(), e);
+        }
+    }
+    
+    // Normalize TOON syntax to JSON
+    // TOON uses compact syntax but is JSON-compatible
+    private static String normalizeToonToJson(String toon) {
+        String json = toon.trim();
+        
+        // Replace single quotes with double quotes (if used)
+        json = json.replace("'", "\"");
+        
+        // Remove trailing commas before closing brackets/braces
+        json = json.replaceAll(",\\s*\\}", "}");
+        json = json.replaceAll(",\\s*\\]", "]");
+        
+        // If the string doesn't start with { or [, wrap it in braces
+        if (!json.startsWith("{") && !json.startsWith("[")) {
+            json = "{" + json + "}";
+        }
+        
+        return json;
+    }
+    
+    // Map to TOON
+    // Convert Map/Object structure to TOON format
+    private static String mapToToon(Map<String, Object> map) {
+        StringBuilder sb = new StringBuilder();
+        mapToToonRecursive(map, sb, 0);
+        return sb.toString();
+    }
+    
+    private static void mapToToonRecursive(Object obj, StringBuilder sb, int indent) {
+        String indentStr = "  ".repeat(indent);
+        
+        if (obj instanceof Map) {
+            Map<String, Object> map = (Map<String, Object>) obj;
+            boolean first = true;
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                if (!first) {
+                    sb.append("\n");
+                }
+                first = false;
+                
+                String key = entry.getKey();
+                Object value = entry.getValue();
+                
+                if (value instanceof Map) {
+                    sb.append(indentStr).append(key).append(": {\n");
+                    mapToToonRecursive(value, sb, indent + 1);
+                    sb.append("\n").append(indentStr).append("}");
+                } else if (value instanceof List) {
+                    List<?> list = (List<?>) value;
+                    if (isUniformArray(list)) {
+                        // Use tabular format for uniform arrays: key[count]{field1,field2,...}:
+                        sb.append(indentStr);
+                        formatUniformArrayToon(key, list, sb, indentStr);
+                    } else {
+                        // Check if it's a primitive array
+                        if (isPrimitiveArray(list)) {
+                            sb.append(indentStr);
+                            formatPrimitiveArrayToon(key, list, sb);
+                        } else {
+                            // Non-uniform array - use regular format
+                            sb.append(indentStr).append(key).append(": [");
+                            boolean firstItem = true;
+                            for (Object item : list) {
+                                if (!firstItem) sb.append(", ");
+                                firstItem = false;
+                                mapToToonRecursive(item, sb, 0);
+                            }
+                            sb.append("]");
+                        }
+                    }
+                } else {
+                    sb.append(indentStr).append(key).append(": ");
+                    appendToonValue(value, sb);
+                }
+            }
+        } else if (obj instanceof List) {
+            List<?> list = (List<?>) obj;
+            sb.append("[");
+            boolean first = true;
+            for (Object item : list) {
+                if (!first) sb.append(", ");
+                first = false;
+                mapToToonRecursive(item, sb, 0);
+            }
+            sb.append("]");
+        } else {
+            appendToonValue(obj, sb);
+        }
+    }
+    
+    private static boolean isUniformArray(List<?> list) {
+        if (list.isEmpty()) return false;
+        
+        Object first = list.get(0);
+        if (!(first instanceof Map)) return false;
+        
+        // Check if all items are maps with the same keys
+        for (Object item : list) {
+            if (!(item instanceof Map)) return false;
+            Map<String, ?> itemMap = (Map<String, ?>) item;
+            Map<String, ?> firstMap = (Map<String, ?>) first;
+            if (!itemMap.keySet().equals(firstMap.keySet())) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    private static void appendToonValue(Object value, StringBuilder sb) {
+        if (value == null) {
+            sb.append("null");
+        } else if (value instanceof String) {
+            String str = (String) value;
+            // Escape quotes and backslashes
+            str = str.replace("\\", "\\\\").replace("\"", "\\\"");
+            sb.append("\"").append(str).append("\"");
+        } else if (value instanceof Number || value instanceof Boolean) {
+            sb.append(value.toString());
+        } else {
+            sb.append("\"").append(value.toString().replace("\"", "\\\"")).append("\"");
+        }
+    }
+    
+    private static boolean isPrimitiveArray(List<?> list) {
+        if (list.isEmpty()) return false;
+        for (Object item : list) {
+            if (item instanceof Map || item instanceof List) {
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    // Format uniform array in TOON tabular format: key[count]{field1,field2,...}:
+    private static void formatUniformArrayToon(String key, List<?> list, StringBuilder sb, String indentStr) {
+        int count = list.size();
+        Map<String, ?> firstItem = (Map<String, ?>) list.get(0);
+        
+        // Get field names in order
+        List<String> fields = new ArrayList<>(firstItem.keySet());
+        
+        // Format: key[count]{field1,field2,...}:
+        sb.append(key).append("[").append(count).append("]{");
+        boolean firstField = true;
+        for (String field : fields) {
+            if (!firstField) sb.append(",");
+            firstField = false;
+            sb.append(field);
+        }
+        sb.append("}:\n");
+        
+        // Output values in rows
+        for (Object item : list) {
+            Map<String, ?> itemMap = (Map<String, ?>) item;
+            sb.append(indentStr).append("  ");
+            boolean firstValue = true;
+            for (String field : fields) {
+                if (!firstValue) sb.append(",");
+                firstValue = false;
+                Object fieldValue = itemMap.get(field);
+                appendToonValueInline(fieldValue, sb);
+            }
+            sb.append("\n");
+        }
+    }
+    
+    // Format primitive array in TOON format: key[count]: value1, value2, ...
+    private static void formatPrimitiveArrayToon(String key, List<?> list, StringBuilder sb) {
+        int count = list.size();
+        sb.append(key).append("[").append(count).append("]:");
+        boolean first = true;
+        for (Object item : list) {
+            if (!first) sb.append(",");
+            first = false;
+            sb.append(" ");
+            appendToonValueInline(item, sb);
+        }
+    }
+    
+    // Append TOON value without quotes for strings in tabular format (only quote if needed)
+    private static void appendToonValueInline(Object value, StringBuilder sb) {
+        appendToonValueInline(value, sb, ",");
+    }
+    
+    // Append TOON value with custom delimiter support
+    private static void appendToonValueInline(Object value, StringBuilder sb, String delimiter) {
+        if (value == null) {
+            sb.append("null");
+        } else if (value instanceof String) {
+            String str = (String) value;
+            // Don't quote strings unless they contain the delimiter, newlines, or special chars
+            if (str.contains(delimiter) || str.contains("\n") || str.contains(" ") || str.isEmpty()) {
+                str = str.replace("\\", "\\\\").replace("\"", "\\\"");
+                sb.append("\"").append(str).append("\"");
+            } else {
+                sb.append(str);
+            }
+        } else if (value instanceof Number || value instanceof Boolean) {
+            sb.append(value.toString());
+        } else {
+            sb.append(value.toString());
+        }
     }
 }
 

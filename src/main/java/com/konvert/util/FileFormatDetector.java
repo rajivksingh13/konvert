@@ -29,6 +29,7 @@ public class FileFormatDetector {
         if (lower.endsWith(".yaml") || lower.endsWith(".yml")) return "yaml";
         if (lower.endsWith(".xml")) return "xml";
         if (lower.endsWith(".toml")) return "toml";
+        if (lower.endsWith(".toon")) return "toon";
         if (lower.endsWith(".properties") || lower.endsWith(".prop")) return "properties";
         if (lower.endsWith(".csv")) return "csv";
         if (lower.endsWith(".proto") || lower.endsWith(".protobuf")) return "protobuf";
@@ -130,6 +131,7 @@ public class FileFormatDetector {
             case "yaml": return ".yaml";
             case "xml": return ".xml";
             case "toml": return ".toml";
+            case "toon": return ".toon";
             case "properties": return ".properties";
             case "csv": return ".csv";
             case "protobuf": return ".proto";
