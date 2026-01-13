@@ -73,53 +73,6 @@ jobs:
         Write-Host "Found JAR: $($jarFile.Name)"
         $jarName = $jarFile.Name
     
-    - name: Install WiX Toolset
-      run: |
-        Write-Host "Installing WiX Toolset for jpackage..."
-        
-        # Check if WiX is already installed
-        $wixPaths = @(
-          "C:\Program Files (x86)\WiX Toolset v3.11\bin",
-          "C:\Program Files (x86)\WiX Toolset v3.14\bin"
-        )
-        
-        $wixFound = $false
-        foreach ($path in $wixPaths) {
-          if (Test-Path "$path\candle.exe") {
-            $env:PATH = "$path;$env:PATH"
-            Write-Host "WiX found at: $path"
-            $wixFound = $true
-            break
-          }
-        }
-        
-        if (-not $wixFound) {
-          Write-Host "WiX not found, installing via Chocolatey..."
-          choco install wixtoolset -y --no-progress
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "Chocolatey install failed, downloading WiX directly..."
-            $wixUrl = "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip"
-            $wixZip = "$env:TEMP\wix.zip"
-            $wixDir = "$env:TEMP\wix"
-            
-            Invoke-WebRequest -Uri $wixUrl -OutFile $wixZip -UseBasicParsing
-            Expand-Archive -Path $wixZip -DestinationPath $wixDir -Force
-            $env:PATH += ";$wixDir"
-            Write-Host "WiX downloaded and extracted"
-          } else {
-            # Refresh PATH to include WiX
-            $env:PATH = "C:\Program Files (x86)\WiX Toolset v3.11\bin;$env:PATH"
-          }
-        }
-        
-        # Verify WiX works
-        $candleCheck = Get-Command candle -ErrorAction SilentlyContinue
-        if ($candleCheck) {
-          Write-Host "✓ WiX Toolset verified: $($candleCheck.Source)"
-        } else {
-          Write-Host "WARNING: WiX verification failed, but continuing..."
-        }
-    
     - name: Clean previous builds
       run: |
         if (Test-Path "dist") {
@@ -163,54 +116,77 @@ jobs:
           }
         }
         
-        # Create single EXE installer - bundles everything (JVM, JAR, dependencies)
-        # --win-per-user-install installs to AppData, making it feel more portable
+        # Create portable app-image - bundles everything (JVM, JAR, dependencies)
+        # This creates a folder with KonvertR.exe that can be run directly
+        # No installer needed - just double-click the EXE
         jpackage --input target `
             --name KonvertR `
             --main-jar $jarName `
-            --type exe `
+            --main-class com.konvert.KonvertApplication `
+            --type app-image `
             --app-version $version `
             --description "KonvertR - Universal Format Converter" `
             --vendor "KonvertR" `
             --copyright "Copyright 2024 KonvertR" `
-            --win-dir-chooser `
-            --win-menu `
-            --win-shortcut `
-            --win-menu-group "KonvertR" `
-            --win-per-user-install `
             --dest dist `
             --java-options "-Xmx512m" `
-            --java-options "-Dserver.port=8080"
+            --java-options "-Dserver.port=8080" `
+            --java-options "-Djava.awt.headless=false"
         
         if ($LASTEXITCODE -ne 0) {
-          Write-Host "ERROR: Failed to build EXE installer!"
-          Write-Host "This might be due to WiX Toolset not being found."
+          Write-Host "ERROR: Failed to build portable executable!"
           exit 1
         }
         
-        $exeFile = Get-ChildItem "dist\KonvertR*.exe" | Select-Object -First 1
-        if (-not $exeFile) {
-          Write-Host "ERROR: EXE installer was not created!"
+        if (-not (Test-Path "dist\KonvertR\KonvertR.exe")) {
+          Write-Host "ERROR: Executable was not created!"
           exit 1
         }
         
-        Write-Host "✓ Single EXE installer created: $($exeFile.Name)"
-        Write-Host "  Size: $([math]::Round($exeFile.Length / 1MB, 2)) MB"
-        Write-Host "  This EXE bundles JVM, JAR, and all dependencies"
-        Write-Host "  Users double-click to install and launch"
+        Write-Host "✓ Portable executable created: dist\KonvertR\KonvertR.exe"
+        Write-Host "  JVM and all dependencies are bundled"
+        Write-Host "  Users double-click KonvertR.exe to launch"
     
-    - name: Verify executable
+    - name: Verify executable structure
       run: |
-        Write-Host "Verifying executable..."
-        $exeFile = Get-ChildItem "dist\KonvertR*.exe" | Select-Object -First 1
-        if ($exeFile) {
-          Write-Host "  Found: $($exeFile.Name) ($([math]::Round($exeFile.Length / 1MB, 2)) MB)"
-          Write-Host "  ✓ Single EXE file - no JAR or source code visible"
-        } else {
-          Write-Host "ERROR: Executable not found!"
+        Write-Host "Verifying executable structure..."
+        
+        if (-not (Test-Path "dist\KonvertR\KonvertR.exe")) {
+          Write-Host "ERROR: KonvertR.exe not found!"
           exit 1
         }
-        Write-Host "✓ Executable verified"
+        
+        $exeInfo = Get-Item "dist\KonvertR\KonvertR.exe"
+        Write-Host "  ✓ Found: KonvertR.exe ($([math]::Round($exeInfo.Length / 1MB, 2)) MB)"
+        
+        # Verify runtime folder exists (contains JVM)
+        if (Test-Path "dist\KonvertR\runtime") {
+          $runtimeSize = (Get-ChildItem "dist\KonvertR\runtime" -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB
+          Write-Host "  ✓ Found: runtime folder ($([math]::Round($runtimeSize, 2)) MB) - JVM bundled"
+        } else {
+          Write-Host "  WARNING: runtime folder not found - JVM may not be bundled!"
+        }
+        
+        # Verify app folder exists (contains application)
+        if (Test-Path "dist\KonvertR\app") {
+          Write-Host "  ✓ Found: app folder - Application files bundled"
+        } else {
+          Write-Host "  WARNING: app folder not found!"
+        }
+        
+        # List contents for debugging
+        Write-Host ""
+        Write-Host "Contents of dist\KonvertR:"
+        Get-ChildItem "dist\KonvertR" | ForEach-Object {
+          if ($_.PSIsContainer) {
+            Write-Host "  [DIR]  $($_.Name)"
+          } else {
+            Write-Host "  [FILE] $($_.Name) ($([math]::Round($_.Length / 1KB, 2)) KB)"
+          }
+        }
+        
+        Write-Host ""
+        Write-Host "✓ Executable structure verified"
     
     - name: Get version from tag or default
       id: get_version
@@ -235,19 +211,19 @@ jobs:
         
         Write-Host "Creating distribution package: $PACKAGE_NAME"
         
-        # Find the EXE installer file
-        $exeFile = Get-ChildItem "dist\KonvertR*.exe" | Select-Object -First 1
-        if (-not $exeFile) {
-          Write-Host "ERROR: EXE installer not found!"
+        # Verify the app-image exists
+        if (-not (Test-Path "dist\KonvertR\KonvertR.exe")) {
+          Write-Host "ERROR: KonvertR executable not found!"
           exit 1
         }
         
         # Create package directory
         New-Item -ItemType Directory -Force -Path $PACKAGE_NAME | Out-Null
         
-        # Copy only the single EXE installer file
-        Copy-Item $exeFile.FullName -Destination "$PACKAGE_NAME\$($exeFile.Name)" -Force
-        Write-Host "  ✓ Copied single EXE installer: $($exeFile.Name)"
+        # Copy the entire KonvertR app-image folder (contains EXE + runtime)
+        # The runtime folder is required for the EXE to work, but users only need to click KonvertR.exe
+        Copy-Item -Path "dist\KonvertR\*" -Destination "$PACKAGE_NAME\" -Recurse -Force
+        Write-Host "  ✓ Copied KonvertR executable and runtime"
         
         # Copy documentation files
         $filesToCopy = @(
@@ -276,16 +252,18 @@ jobs:
             "QUICK START",
             "========================================",
             "",
-            "1. Extract this ZIP file",
-            "2. Double-click KonvertR.exe to install and launch",
+            "1. Extract this ZIP file to any location",
+            "2. Double-click KonvertR.exe to launch",
             "3. The application will open in your default web browser",
             "",
-            "Everything is bundled in the EXE file:",
-            "  - Java Runtime (JVM)",
-            "  - Application code",
-            "  - All dependencies",
+            "No installation required! Just extract and run.",
             "",
-            "No JAR files or source code visible to end users!",
+            "Everything is bundled:",
+            "  - Java Runtime (JVM) - in runtime folder",
+            "  - Application code - bundled in app folder",
+            "  - All dependencies - included",
+            "",
+            "You only need to click KonvertR.exe - everything else is automatic!",
             "",
             "========================================",
             "SYSTEM REQUIREMENTS",
@@ -307,15 +285,17 @@ jobs:
             "- All features work offline",
             "",
             "========================================",
-            "INSTALLATION NOTES",
+            "TROUBLESHOOTING",
             "========================================",
             "",
-            "The EXE installer will:",
-            "  - Install to your user AppData folder (portable-style)",
-            "  - Create a Start Menu shortcut",
-            "  - Launch the application automatically after installation",
+            "If KonvertR.exe doesn't launch:",
+            "1. Make sure you extracted ALL files from the ZIP",
+            "2. Keep the runtime and app folders in the same directory as KonvertR.exe",
+            "3. Try running as Administrator",
+            "4. Check Windows Firewall settings",
+            "5. Ensure port 8080 is not in use",
             "",
-            "You can uninstall via Windows Settings > Apps",
+            "The runtime and app folders are required - do not delete them!",
             "",
             "========================================"
         )
@@ -338,7 +318,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: windows-executable
-        path: dist/KonvertR*.exe
+        path: dist/KonvertR/KonvertR.exe
         retention-days: 30
     
     - name: Upload Windows distribution package
@@ -359,22 +339,21 @@ jobs:
           Write-Host "Size: $([math]::Round($zipFile.Length / 1MB, 2)) MB"
           Write-Host ""
           Write-Host "Package includes:"
-          Write-Host "  - KonvertR.exe (single installer EXE)"
-          Write-Host "  - Java Runtime (bundled inside EXE)"
-          Write-Host "  - Application code (bundled inside EXE)"
-          Write-Host "  - All dependencies (bundled inside EXE)"
+          Write-Host "  - KonvertR.exe (main executable - double-click to run)"
+          Write-Host "  - runtime/ (Java Runtime - required, bundled)"
+          Write-Host "  - app/ (Application files - required, bundled)"
           Write-Host "  - README.txt (user guide)"
           Write-Host ""
           Write-Host "Features:"
-          Write-Host "  ✓ Single EXE file - everything bundled"
-          Write-Host "  ✓ No JAR files visible to users"
-          Write-Host "  ✓ No source code visible to users"
-          Write-Host "  ✓ Double-click to install and launch"
+          Write-Host "  ✓ Portable application - no installation needed"
+          Write-Host "  ✓ Java Runtime bundled - no JRE needed"
+          Write-Host "  ✓ Double-click KonvertR.exe to launch"
+          Write-Host "  ✓ All dependencies included"
           Write-Host ""
           Write-Host "Usage:"
           Write-Host "  1. Extract ZIP file"
           Write-Host "  2. Double-click KonvertR.exe"
-          Write-Host "  3. Installer runs and launches application"
+          Write-Host "  3. Application opens in browser automatically"
           Write-Host "========================================"
         }
     
@@ -388,16 +367,16 @@ jobs:
           
           ### Quick Start
           1. Download and extract the ZIP file
-          2. Double-click `KonvertR.exe` to install and launch
-          3. The application will open in your default web browser
+          2. Double-click `KonvertR.exe` to launch
+          3. The application will open in your default web browser automatically
           
-          **Single EXE installer** - Everything bundled (JVM, code, dependencies)
+          **Portable application** - No installation required! Just extract and run.
           
           ### What's Included
-          - ✅ Single EXE file - no JAR files or source code visible
-          - ✅ Java Runtime bundled inside the EXE
-          - ✅ All dependencies bundled inside the EXE
-          - ✅ Portable installation to user AppData folder
+          - ✅ KonvertR.exe - main executable (double-click to run)
+          - ✅ Java Runtime bundled (in runtime folder)
+          - ✅ All dependencies included (in app folder)
+          - ✅ Everything bundled - no external dependencies needed
           
           ### System Requirements
           - Windows 10 or later
