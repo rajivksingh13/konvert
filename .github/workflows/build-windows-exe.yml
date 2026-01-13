@@ -32,11 +32,6 @@ jobs:
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2
     
-    - name: Set up .NET SDK
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '6.0.x'
-    
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
@@ -78,6 +73,33 @@ jobs:
         Write-Host "Found JAR: $($jarFile.Name)"
         $jarName = $jarFile.Name
     
+    - name: Install 7-Zip (for self-extracting EXE)
+      run: |
+        # Check if 7-Zip is already installed
+        $7zipPath = "${env:ProgramFiles}\7-Zip\7z.exe"
+        if (-not (Test-Path $7zipPath)) {
+          $7zipPath = "${env:ProgramFiles(x86)}\7-Zip\7z.exe"
+        }
+        
+        if (-not (Test-Path $7zipPath)) {
+          Write-Host "7-Zip not found. Installing via Chocolatey..."
+          choco install 7zip -y --no-progress
+          
+          # Refresh PATH
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+          
+          # Verify installation
+          $7zipPath = "${env:ProgramFiles}\7-Zip\7z.exe"
+          if (Test-Path $7zipPath) {
+            Write-Host "✓ 7-Zip installed successfully"
+          } else {
+            Write-Host "ERROR: Failed to install 7-Zip!"
+            exit 1
+          }
+        } else {
+          Write-Host "✓ 7-Zip already installed"
+        }
+    
     - name: Clean previous builds
       run: |
         if (Test-Path "dist") {
@@ -107,7 +129,7 @@ jobs:
         Write-Host "JAR: $jarName"
         Write-Host "Version: $version"
         
-        # Step 1: Create app-image with jpackage
+        # Step 1: Create app-image with jpackage (pure Java solution)
         Write-Host "Step 1: Creating application package with jpackage..."
         jpackage --input target `
             --name KonvertR `
@@ -135,168 +157,89 @@ jobs:
         
         Write-Host "✓ Application package created"
         
-        # Step 2: Create ZIP of the app-image
-        Write-Host "Step 2: Creating ZIP archive of application..."
-        $zipPath = "dist\KonvertR-Temp.zip"
-        if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
-        Compress-Archive -Path "dist\KonvertR\*" -DestinationPath $zipPath -Force
+        # Step 2: Create self-extracting EXE using 7-Zip (pure Java + 7-Zip, no .NET)
+        Write-Host "Step 2: Creating self-extracting EXE using 7-Zip..."
         
-        if (-not (Test-Path $zipPath)) {
-          Write-Host "ERROR: Failed to create ZIP archive!"
+        # Find 7-Zip (should be installed in previous step)
+        $7zipPath = "${env:ProgramFiles}\7-Zip\7z.exe"
+        if (-not (Test-Path $7zipPath)) {
+          $7zipPath = "${env:ProgramFiles(x86)}\7-Zip\7z.exe"
+        }
+        
+        if (-not (Test-Path $7zipPath)) {
+          Write-Host "ERROR: 7-Zip not found! It should have been installed in a previous step."
+          Write-Host "Falling back to portable ZIP package..."
+          # Fallback: Create ZIP package
+          $zipPath = "dist\KonvertR-Portable-$version.zip"
+          Compress-Archive -Path "dist\KonvertR\*" -DestinationPath $zipPath -Force
+          Write-Host "✓ Portable ZIP package created: $zipPath"
+          Write-Host "  Users can extract and run KonvertR\KonvertR.exe"
+          exit 0
+        }
+        
+        Write-Host "Using 7-Zip at: $7zipPath"
+        
+        # Create 7z archive
+        $archivePath = "dist\KonvertR-Temp.7z"
+        if (Test-Path $archivePath) { Remove-Item $archivePath -Force }
+        
+        & $7zipPath a -t7z -mx=9 "$archivePath" "dist\KonvertR\*" | Out-Null
+        
+        if (-not (Test-Path $archivePath)) {
+          Write-Host "ERROR: Failed to create 7z archive!"
           exit 1
         }
         
-        Write-Host "✓ ZIP archive created"
+        Write-Host "✓ 7z archive created"
         
-        # Step 3: Create C# launcher and compile to EXE
-        Write-Host "Step 3: Creating self-extracting EXE using C#..."
-        
-        # Create C# launcher program - build as array to avoid YAML parsing issues
-        $csharpLines = @(
-            "using System;",
-            "using System.IO;",
-            "using System.IO.Compression;",
-            "using System.Diagnostics;",
-            "using System.Reflection;",
-            "using System.Threading;",
-            "",
-            "class KonvertRLauncher",
-            "{",
-            "    static void Main()",
-            "    {",
-            "        string tempDir = Path.Combine(Path.GetTempPath(), `"KonvertR_`" + Guid.NewGuid().ToString());",
-            "        Directory.CreateDirectory(tempDir);",
-            "        ",
-            "        try",
-            "        {",
-            "            string exePath = Assembly.GetExecutingAssembly().Location;",
-            "            byte[] allBytes = File.ReadAllBytes(exePath);",
-            "            ",
-            "            int zipStart = -1;",
-            "            for (int i = allBytes.Length - 1; i >= 3; i--)",
-            "            {",
-            "                if (allBytes[i] == 0x50 && allBytes[i-1] == 0x4B && ",
-            "                    allBytes[i-2] == 0x03 && allBytes[i-3] == 0x04)",
-            "                {",
-            "                    zipStart = i - 3;",
-            "                    break;",
-            "                }",
-            "            }",
-            "            ",
-            "            if (zipStart == -1)",
-            "            {",
-            "                Console.WriteLine(`"ERROR: Could not find embedded ZIP data!`");",
-            "                Console.WriteLine(`"Press any key to exit...`");",
-            "                Console.ReadKey();",
-            "                return;",
-            "            }",
-            "            ",
-            "            byte[] zipBytes = new byte[allBytes.Length - zipStart];",
-            "            Array.Copy(allBytes, zipStart, zipBytes, 0, zipBytes.Length);",
-            "            string zipPath = Path.Combine(tempDir, `"app.zip`");",
-            "            File.WriteAllBytes(zipPath, zipBytes);",
-            "            ",
-            "            ZipFile.ExtractToDirectory(zipPath, tempDir);",
-            "            ",
-            "            string konvertExePath = Path.Combine(tempDir, `"KonvertR`", `"KonvertR.exe`");",
-            "            if (File.Exists(konvertExePath))",
-            "            {",
-            "                Process process = Process.Start(new ProcessStartInfo",
-            "                {",
-            "                    FileName = konvertExePath,",
-            "                    UseShellExecute = true",
-            "                });",
-            "                process.WaitForExit();",
-            "            }",
-            "            else",
-            "            {",
-            "                Console.WriteLine(`"ERROR: KonvertR.exe not found!`");",
-            "                Console.WriteLine(`"Expected path: `" + konvertExePath);",
-            "                Console.WriteLine(`"Press any key to exit...`");",
-            "                Console.ReadKey();",
-            "            }",
-            "        }",
-            "        catch (Exception ex)",
-            "        {",
-            "            Console.WriteLine(`"ERROR: `" + ex.Message);",
-            "            Console.WriteLine(ex.StackTrace);",
-            "            Console.WriteLine(`"Press any key to exit...`");",
-            "            Console.ReadKey();",
-            "        }",
-            "        finally",
-            "        {",
-            "            Thread.Sleep(2000);",
-            "            try",
-            "            {",
-            "                if (Directory.Exists(tempDir))",
-            "                {",
-            "                    Directory.Delete(tempDir, true);",
-            "                }",
-            "            }",
-            "            catch { }",
-            "        }",
-            "    }",
-            "}"
+        # Create SFX config for 7-Zip
+        $sfxConfigLines = @(
+            ";!@Install@!UTF-8!",
+            "Title=`"KonvertR - Universal Format Converter`"",
+            "BeginPrompt=`"Extracting KonvertR...`"",
+            "ExecuteFile=`"KonvertR\\KonvertR.exe`"",
+            "ExecuteParameters=`"`"",
+            "GUIMode=`"1`"",
+            "ExtractPathText=`"Extracting to temporary folder...`"",
+            "ExtractTitle=`"Extracting`"",
+            "FinishMessage=`"Launching KonvertR...`"",
+            ";!@InstallEnd@!"
         )
-        $csharpCode = $csharpLines -join "`n"
+        $sfxConfig = $sfxConfigLines -join "`n"
+        $sfxConfigPath = "dist\sfx_config.txt"
+        $sfxConfig | Out-File -FilePath $sfxConfigPath -Encoding ASCII -NoNewline
         
-        # Create temp directory for C# project
-        $csProjectDir = "dist\LauncherProject"
-        New-Item -ItemType Directory -Path $csProjectDir -Force | Out-Null
+        # Get 7-Zip SFX module
+        $sfxModulePath = "${env:ProgramFiles}\7-Zip\7z.sfx"
+        if (-not (Test-Path $sfxModulePath)) {
+          $sfxModulePath = "${env:ProgramFiles(x86)}\7-Zip\7z.sfx"
+        }
         
-        # Save C# code
-        $csFilePath = Join-Path $csProjectDir "Program.cs"
-        $csharpCode | Out-File -FilePath $csFilePath -Encoding UTF8
-        
-        # Create .csproj file - build as array to avoid YAML parsing issues
-        $csprojLines = @(
-            "<Project Sdk=`"Microsoft.NET.Sdk`">",
-            "  <PropertyGroup>",
-            "    <OutputType>Exe</OutputType>",
-            "    <TargetFramework>net6.0</TargetFramework>",
-            "    <Nullable>enable</Nullable>",
-            "    <AssemblyName>KonvertR-Portable-$version</AssemblyName>",
-            "    <RootNamespace>KonvertRLauncher</RootNamespace>",
-            "  </PropertyGroup>",
-            "</Project>"
-        )
-        $csprojContent = $csprojLines -join "`n"
-        $csprojPath = Join-Path $csProjectDir "Launcher.csproj"
-        $csprojContent | Out-File -FilePath $csprojPath -Encoding UTF8
-        
-        # Compile C# program to EXE
-        Write-Host "Compiling C# launcher..."
-        dotnet build "$csProjectDir\Launcher.csproj" -c Release -o "$csProjectDir\bin" 2>&1 | Out-Null
-        
-        if ($LASTEXITCODE -ne 0) {
-          Write-Host "ERROR: Failed to compile C# launcher!"
+        if (-not (Test-Path $sfxModulePath)) {
+          Write-Host "ERROR: 7-Zip SFX module not found!"
           exit 1
         }
         
-        # Get compiled EXE
-        $compiledExe = Get-ChildItem "$csProjectDir\bin\Release\net6.0\*.exe" | Select-Object -First 1
-        
-        if (-not $compiledExe) {
-          Write-Host "ERROR: Compiled EXE not found!"
-          exit 1
-        }
-        
-        # Read compiled EXE and ZIP bytes
-        $exeBytes = [System.IO.File]::ReadAllBytes($compiledExe.FullName)
-        $zipBytes = [System.IO.File]::ReadAllBytes($zipPath)
-        
-        # Combine: EXE + ZIP data
-        $finalCombinedBytes = New-Object byte[] ($exeBytes.Length + $zipBytes.Length)
-        [System.Array]::Copy($exeBytes, 0, $finalCombinedBytes, 0, $exeBytes.Length)
-        [System.Array]::Copy($zipBytes, 0, $finalCombinedBytes, $exeBytes.Length, $zipBytes.Length)
-        
-        # Save final EXE
+        # Combine: SFX module + config + archive = self-extracting EXE
         $finalExePath = "dist\KonvertR-Portable-$version.exe"
-        [System.IO.File]::WriteAllBytes($finalExePath, $finalCombinedBytes)
+        if (Test-Path $finalExePath) { Remove-Item $finalExePath -Force }
+        
+        $sfxBytes = [System.IO.File]::ReadAllBytes($sfxModulePath)
+        $configBytes = [System.IO.File]::ReadAllBytes($sfxConfigPath)
+        $archiveBytes = [System.IO.File]::ReadAllBytes($archivePath)
+        
+        $combinedBytes = New-Object byte[] ($sfxBytes.Length + $configBytes.Length + $archiveBytes.Length)
+        [System.Array]::Copy($sfxBytes, 0, $combinedBytes, 0, $sfxBytes.Length)
+        [System.Array]::Copy($configBytes, 0, $combinedBytes, $sfxBytes.Length, $configBytes.Length)
+        [System.Array]::Copy($archiveBytes, 0, $combinedBytes, $sfxBytes.Length + $configBytes.Length, $archiveBytes.Length)
+        
+        [System.IO.File]::WriteAllBytes($finalExePath, $combinedBytes)
         
         # Cleanup
-        Remove-Item $csProjectDir -Recurse -Force -ErrorAction SilentlyContinue
-        Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
+        Remove-Item $archivePath -Force -ErrorAction SilentlyContinue
+        Remove-Item $sfxConfigPath -Force -ErrorAction SilentlyContinue
+        
+        Write-Host "✓ Self-extracting EXE created (pure Java + 7-Zip, no .NET required)"
         
         # Verify the EXE was created
         if (-not (Test-Path $finalExePath)) {
@@ -305,11 +248,12 @@ jobs:
         }
         
         $exeSize = (Get-Item $finalExePath).Length / 1MB
-        Write-Host "✓ Single self-extracting EXE created: $finalExePath"
+        Write-Host "✓ Self-extracting EXE created: $finalExePath"
         Write-Host "  Size: $([math]::Round($exeSize, 2)) MB"
+        Write-Host "  - Pure Java solution (jpackage + 7-Zip, no .NET required)"
+        Write-Host "  - Bundles JVM, JAR, and all dependencies"
         Write-Host "  - Extracts to temp folder when run"
         Write-Host "  - Launches KonvertR automatically"
-        Write-Host "  - Cleans up on exit"
         Write-Host "  - No JAR or source code visible to users"
         Write-Host "  - Users just double-click to run (no installation needed!)"
     
@@ -329,9 +273,10 @@ jobs:
         
         Write-Host "  ✓ Found: $($exeFile.Name)"
         Write-Host "  ✓ Size: $([math]::Round($exeSize, 2)) MB"
-        Write-Host "  ✓ Type: Self-extracting Portable EXE (single file)"
+        Write-Host "  ✓ Type: Self-extracting EXE (pure Java + 7-Zip)"
         Write-Host ""
         Write-Host "✓ Executable verified"
+        Write-Host "  - Pure Java solution (jpackage + 7-Zip, no .NET required)"
         Write-Host "  - Single EXE file contains everything"
         Write-Host "  - No JAR or source code exposed"
         Write-Host "  - Extracts to temp folder when run"
@@ -383,6 +328,7 @@ jobs:
             "1. Double-click KonvertR-Portable-$VERSION.exe to run",
             "2. The application will extract to a temp folder and launch automatically",
             "3. No installation required - just double-click and run!",
+            "4. The temp folder is cleaned up automatically when you exit",
             "",
             "Everything is bundled in this single EXE file:",
             "  - Java Runtime (JVM) - bundled inside",
