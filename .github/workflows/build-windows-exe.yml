@@ -151,93 +151,94 @@ jobs:
         # Step 3: Create C# launcher and compile to EXE
         Write-Host "Step 3: Creating self-extracting EXE using C#..."
         
-        # Create C# launcher program
-        $csharpCode = @'
-using System;
-using System.IO;
-using System.IO.Compression;
-using System.Diagnostics;
-using System.Reflection;
-using System.Threading;
-
-class KonvertRLauncher
-{
-    static void Main()
-    {
-        string tempDir = Path.Combine(Path.GetTempPath(), "KonvertR_" + Guid.NewGuid().ToString());
-        Directory.CreateDirectory(tempDir);
-        
-        try
-        {
-            string exePath = Assembly.GetExecutingAssembly().Location;
-            byte[] allBytes = File.ReadAllBytes(exePath);
-            
-            int zipStart = -1;
-            for (int i = allBytes.Length - 1; i >= 3; i--)
-            {
-                if (allBytes[i] == 0x50 && allBytes[i-1] == 0x4B && 
-                    allBytes[i-2] == 0x03 && allBytes[i-3] == 0x04)
-                {
-                    zipStart = i - 3;
-                    break;
-                }
-            }
-            
-            if (zipStart == -1)
-            {
-                Console.WriteLine("ERROR: Could not find embedded ZIP data!");
-                Console.WriteLine("Press any key to exit...");
-                Console.ReadKey();
-                return;
-            }
-            
-            byte[] zipBytes = new byte[allBytes.Length - zipStart];
-            Array.Copy(allBytes, zipStart, zipBytes, 0, zipBytes.Length);
-            string zipPath = Path.Combine(tempDir, "app.zip");
-            File.WriteAllBytes(zipPath, zipBytes);
-            
-            ZipFile.ExtractToDirectory(zipPath, tempDir);
-            
-            string konvertExePath = Path.Combine(tempDir, "KonvertR", "KonvertR.exe");
-            if (File.Exists(konvertExePath))
-            {
-                Process process = Process.Start(new ProcessStartInfo
-                {
-                    FileName = konvertExePath,
-                    UseShellExecute = true
-                });
-                process.WaitForExit();
-            }
-            else
-            {
-                Console.WriteLine("ERROR: KonvertR.exe not found!");
-                Console.WriteLine("Expected path: " + konvertExePath);
-                Console.WriteLine("Press any key to exit...");
-                Console.ReadKey();
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("ERROR: " + ex.Message);
-            Console.WriteLine(ex.StackTrace);
-            Console.WriteLine("Press any key to exit...");
-            Console.ReadKey();
-        }
-        finally
-        {
-            Thread.Sleep(2000);
-            try
-            {
-                if (Directory.Exists(tempDir))
-                {
-                    Directory.Delete(tempDir, true);
-                }
-            }
-            catch { }
-        }
-    }
-}
-'@
+        # Create C# launcher program - build as array to avoid YAML parsing issues
+        $csharpLines = @(
+            "using System;",
+            "using System.IO;",
+            "using System.IO.Compression;",
+            "using System.Diagnostics;",
+            "using System.Reflection;",
+            "using System.Threading;",
+            "",
+            "class KonvertRLauncher",
+            "{",
+            "    static void Main()",
+            "    {",
+            "        string tempDir = Path.Combine(Path.GetTempPath(), `"KonvertR_`" + Guid.NewGuid().ToString());",
+            "        Directory.CreateDirectory(tempDir);",
+            "        ",
+            "        try",
+            "        {",
+            "            string exePath = Assembly.GetExecutingAssembly().Location;",
+            "            byte[] allBytes = File.ReadAllBytes(exePath);",
+            "            ",
+            "            int zipStart = -1;",
+            "            for (int i = allBytes.Length - 1; i >= 3; i--)",
+            "            {",
+            "                if (allBytes[i] == 0x50 && allBytes[i-1] == 0x4B && ",
+            "                    allBytes[i-2] == 0x03 && allBytes[i-3] == 0x04)",
+            "                {",
+            "                    zipStart = i - 3;",
+            "                    break;",
+            "                }",
+            "            }",
+            "            ",
+            "            if (zipStart == -1)",
+            "            {",
+            "                Console.WriteLine(`"ERROR: Could not find embedded ZIP data!`");",
+            "                Console.WriteLine(`"Press any key to exit...`");",
+            "                Console.ReadKey();",
+            "                return;",
+            "            }",
+            "            ",
+            "            byte[] zipBytes = new byte[allBytes.Length - zipStart];",
+            "            Array.Copy(allBytes, zipStart, zipBytes, 0, zipBytes.Length);",
+            "            string zipPath = Path.Combine(tempDir, `"app.zip`");",
+            "            File.WriteAllBytes(zipPath, zipBytes);",
+            "            ",
+            "            ZipFile.ExtractToDirectory(zipPath, tempDir);",
+            "            ",
+            "            string konvertExePath = Path.Combine(tempDir, `"KonvertR`", `"KonvertR.exe`");",
+            "            if (File.Exists(konvertExePath))",
+            "            {",
+            "                Process process = Process.Start(new ProcessStartInfo",
+            "                {",
+            "                    FileName = konvertExePath,",
+            "                    UseShellExecute = true",
+            "                });",
+            "                process.WaitForExit();",
+            "            }",
+            "            else",
+            "            {",
+            "                Console.WriteLine(`"ERROR: KonvertR.exe not found!`");",
+            "                Console.WriteLine(`"Expected path: `" + konvertExePath);",
+            "                Console.WriteLine(`"Press any key to exit...`");",
+            "                Console.ReadKey();",
+            "            }",
+            "        }",
+            "        catch (Exception ex)",
+            "        {",
+            "            Console.WriteLine(`"ERROR: `" + ex.Message);",
+            "            Console.WriteLine(ex.StackTrace);",
+            "            Console.WriteLine(`"Press any key to exit...`");",
+            "            Console.ReadKey();",
+            "        }",
+            "        finally",
+            "        {",
+            "            Thread.Sleep(2000);",
+            "            try",
+            "            {",
+            "                if (Directory.Exists(tempDir))",
+            "                {",
+            "                    Directory.Delete(tempDir, true);",
+            "                }",
+            "            }",
+            "            catch { }",
+            "        }",
+            "    }",
+            "}"
+        )
+        $csharpCode = $csharpLines -join "`n"
         
         # Create temp directory for C# project
         $csProjectDir = "dist\LauncherProject"
@@ -247,18 +248,19 @@ class KonvertRLauncher
         $csFilePath = Join-Path $csProjectDir "Program.cs"
         $csharpCode | Out-File -FilePath $csFilePath -Encoding UTF8
         
-        # Create .csproj file
-        $csprojContent = @"
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <AssemblyName>KonvertR-Portable-$version</AssemblyName>
-    <RootNamespace>KonvertRLauncher</RootNamespace>
-  </PropertyGroup>
-</Project>
-"@
+        # Create .csproj file - build as array to avoid YAML parsing issues
+        $csprojLines = @(
+            "<Project Sdk=`"Microsoft.NET.Sdk`">",
+            "  <PropertyGroup>",
+            "    <OutputType>Exe</OutputType>",
+            "    <TargetFramework>net6.0</TargetFramework>",
+            "    <Nullable>enable</Nullable>",
+            "    <AssemblyName>KonvertR-Portable-$version</AssemblyName>",
+            "    <RootNamespace>KonvertRLauncher</RootNamespace>",
+            "  </PropertyGroup>",
+            "</Project>"
+        )
+        $csprojContent = $csprojLines -join "`n"
         $csprojPath = Join-Path $csProjectDir "Launcher.csproj"
         $csprojContent | Out-File -FilePath $csprojPath -Encoding UTF8
         
