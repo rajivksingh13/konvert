@@ -94,7 +94,7 @@ jobs:
         # Update version in electron package.json
         $electronPackageJson = Get-Content "electron\package.json" -Raw | ConvertFrom-Json
         $electronPackageJson.version = $version
-        $electronPackageJson.build.win.artifactName = "KonvertR-Portable-${version}.${ext}"
+        $electronPackageJson.build.win.artifactName = "KonvertR-Portable-${version}.zip"
         $electronPackageJson | ConvertTo-Json -Depth 10 | Set-Content "electron\package.json"
         
         # Build Electron app
@@ -208,7 +208,7 @@ jobs:
           const fs = require('fs');
           const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
           pkg.version = '$VERSION';
-          pkg.build.mac.artifactName = 'KonvertR-Portable-${VERSION}.${ext}';
+          pkg.build.mac.artifactName = 'KonvertR-Portable-' + '$VERSION' + '.zip';
           fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
         "
         
