@@ -1,0 +1,86 @@
+{
+  "name": "konvertr-electron",
+  "version": "1.0.0",
+  "description": "KonvertR - Universal Format Converter (Electron Wrapper)",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win --config.win.sign=false",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
+  },
+  "build": {
+    "appId": "com.konvertr.app",
+    "productName": "KonvertR",
+    "directories": {
+      "output": "../dist-electron",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "loading.html",
+      "error.html",
+      "package.json",
+      "!**/node_modules/**/*",
+      "!**/.git/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "KonvertR-Portable-${version}.${ext}",
+      "sign": false,
+      "signAndEditExecutable": false,
+      "signDlls": false,
+      "verifyUpdateCodeSignature": false
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "icon": "build/icon.icns",
+      "artifactName": "KonvertR-Portable-${version}.${ext}"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "KonvertR-Portable-${version}.${ext}"
+    },
+    "extraResources": [
+      {
+        "from": "../target",
+        "to": "backend/",
+        "filter": [
+          "backend.dat",
+          "!konvertr-*.jar",
+          "!konvertr-*-sources.jar",
+          "!konvertr-*-javadoc.jar",
+          "!konvertr-*-original.jar",
+          "!konvertr-*-obfuscated.jar"
+        ]
+      }
+    ]
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "dependencies": {},
+  "optionalDependencies": {
+    "glob": "^10.3.10"
+  }
+}

@@ -1,0 +1,325 @@
+name: Build Electron Packages (Windows & macOS)
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+  release:
+    types: [created]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        architecture: x64
+    
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install frontend dependencies
+      working-directory: ./frontend
+      run: npm ci
+    
+    - name: Build frontend
+      working-directory: ./frontend
+      env:
+        CI: false
+        DISABLE_ESLINT_PLUGIN: true
+      run: npm run build
+    
+    - name: Deploy frontend to static resources
+      working-directory: ./frontend
+      run: node deploy.js
+    
+    - name: Build Spring Boot application
+      run: mvn clean package -DskipTests
+    
+    - name: Prepare backend file (hide JAR)
+      run: |
+        Write-Host "Preparing backend file (copying JAR to .dat)..."
+        $jarFile = Get-ChildItem "target\konvertr-*.jar" | Where-Object { 
+          $_.Name -notlike "*-sources.jar" -and 
+          $_.Name -notlike "*-javadoc.jar" -and 
+          $_.Name -notlike "*-original.jar" -and
+          $_.Name -notlike "*-obfuscated.jar"
+        } | Select-Object -First 1
+        
+        if ($null -eq $jarFile) {
+          Write-Host "ERROR: JAR file not found!"
+          exit 1
+        }
+        
+        Copy-Item -Path $jarFile.FullName -Destination "target\backend.dat" -Force
+        Write-Host "✓ Backend file prepared: backend.dat"
+        Write-Host "  Original JAR will be excluded from Electron package"
+    
+    - name: Install Electron dependencies
+      working-directory: ./electron
+      run: npm ci
+    
+    - name: Build Electron package (Windows)
+      run: |
+        $ErrorActionPreference = "Stop"
+        $version = "1.0.0"
+        if ($env:GITHUB_REF -like "refs/tags/v*") {
+            $version = $env:GITHUB_REF -replace "refs/tags/v", ""
+        }
+        
+        Write-Host "Building Electron package for Windows..."
+        Write-Host "Version: $version"
+        
+        # Update version in electron package.json
+        $electronPackageJson = Get-Content "electron\package.json" -Raw | ConvertFrom-Json
+        $electronPackageJson.version = $version
+        $electronPackageJson.build.win.artifactName = "KonvertR-Portable-${version}.${ext}"
+        $electronPackageJson | ConvertTo-Json -Depth 10 | Set-Content "electron\package.json"
+        
+        # Build Electron app
+        cd electron
+        $env:CSC_IDENTITY_AUTO_DISCOVERY = "false"
+        $env:CI = "true"
+        npm run build:win
+        
+        if ($LASTEXITCODE -ne 0) {
+          Write-Host "ERROR: Electron build failed!"
+          exit 1
+        }
+        
+        cd ..
+        
+        $zipFile = Get-ChildItem "dist-electron\KonvertR-Portable-*.zip" | Select-Object -First 1
+        if ($null -eq $zipFile) {
+          Write-Host "ERROR: Electron package not created!"
+          exit 1
+        }
+        
+        Write-Host "✓ Windows package created: $($zipFile.Name)"
+        Write-Host "  Size: $([math]::Round($zipFile.Length / 1MB, 2)) MB"
+    
+    - name: Upload Windows package
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-electron-package
+        path: dist-electron/KonvertR-Portable-*.zip
+        retention-days: 30
+
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        architecture: x64
+    
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install frontend dependencies
+      working-directory: ./frontend
+      run: npm ci
+    
+    - name: Build frontend
+      working-directory: ./frontend
+      env:
+        CI: false
+        DISABLE_ESLINT_PLUGIN: true
+      run: npm run build
+    
+    - name: Deploy frontend to static resources
+      working-directory: ./frontend
+      run: node deploy.js
+    
+    - name: Build Spring Boot application
+      run: mvn clean package -DskipTests
+    
+    - name: Prepare backend file (hide JAR)
+      run: |
+        echo "Preparing backend file (copying JAR to .dat)..."
+        JAR_FILE=$(find target -name "konvertr-*.jar" ! -name "*-sources.jar" ! -name "*-javadoc.jar" ! -name "*-original.jar" ! -name "*-obfuscated.jar" | head -1)
+        
+        if [ -z "$JAR_FILE" ]; then
+          echo "ERROR: JAR file not found!"
+          exit 1
+        fi
+        
+        cp "$JAR_FILE" "target/backend.dat"
+        echo "✓ Backend file prepared: backend.dat"
+        echo "  Original JAR will be excluded from Electron package"
+    
+    - name: Install Electron dependencies
+      working-directory: ./electron
+      run: npm ci
+    
+    - name: Build Electron package (macOS)
+      run: |
+        VERSION="1.0.0"
+        if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION=$(echo "$GITHUB_REF" | sed 's/refs\/tags\/v//')
+        fi
+        
+        echo "Building Electron package for macOS..."
+        echo "Version: $VERSION"
+        
+        # Update version in electron package.json
+        cd electron
+        node -e "
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          pkg.version = '$VERSION';
+          pkg.build.mac.artifactName = 'KonvertR-Portable-${VERSION}.${ext}';
+          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+        "
+        
+        # Build Electron app
+        export CI=true
+        npm run build:mac
+        
+        if [ $? -ne 0 ]; then
+          echo "ERROR: Electron build failed!"
+          exit 1
+        fi
+        
+        cd ..
+        
+        ZIP_FILE=$(find dist-electron -name "KonvertR-Portable-*.zip" | head -1)
+        if [ -z "$ZIP_FILE" ]; then
+          echo "ERROR: Electron package not created!"
+          exit 1
+        fi
+        
+        echo "✓ macOS package created: $(basename $ZIP_FILE)"
+        echo "  Size: $(du -h "$ZIP_FILE" | cut -f1)"
+    
+    - name: Upload macOS package
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-electron-package
+        path: dist-electron/KonvertR-Portable-*.zip
+        retention-days: 30
+
+  create-release:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - name: Download Windows package
+      uses: actions/download-artifact@v4
+      with:
+        name: windows-electron-package
+        path: ./artifacts/windows
+    
+    - name: Download macOS package
+      uses: actions/download-artifact@v4
+      with:
+        name: macos-electron-package
+        path: ./artifacts/macos
+    
+    - name: Get version
+      id: get_version
+      run: |
+        if [ "${{ github.ref_type }}" == "tag" ]; then
+          VERSION="${{ github.ref_name }}"
+          VERSION=$(echo "$VERSION" | sed 's/^v//')
+        else
+          VERSION="1.0.0"
+        fi
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          ./artifacts/windows/*
+          ./artifacts/macos/*
+        body: |
+          ## KonvertR Electron Distribution Packages
+          
+          ### Quick Start
+          
+          **Windows:**
+          1. Download `KonvertR-Portable-*.zip` (Windows)
+          2. Extract the ZIP file
+          3. Open the `KonvertR` folder
+          4. Double-click `KonvertR.exe` to run
+          
+          **macOS:**
+          1. Download `KonvertR-Portable-*.zip` (macOS)
+          2. Extract the ZIP file
+          3. Open the `KonvertR.app` folder
+          4. Double-click `KonvertR.app` to run
+          
+          **No installation needed - runs directly!**
+          
+          ### What's Included
+          - ✅ Electron desktop app - professional UX
+          - ✅ Single executable in ZIP package
+          - ✅ No JAR files visible (backend hidden as .dat)
+          - ✅ No source code exposed
+          - ✅ Click to launch automatically
+          - ✅ Loading screen shows progress
+          
+          ### System Requirements
+          
+          **Windows:**
+          - Windows 10 or later
+          - 200 MB free disk space
+          
+          **macOS:**
+          - macOS 10.13 or later
+          - 200 MB free disk space
+          - Intel (x64) or Apple Silicon (ARM64)
+          
+          ### Features
+          - Convert between JSON, YAML, TOML, XML, CSV, Protobuf, Properties formats
+          - Format and beautify data
+          - Encode/Decode utilities
+          - File upload and processing
+          - All features work offline
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

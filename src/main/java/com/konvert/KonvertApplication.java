@@ -17,6 +17,17 @@ public class KonvertApplication {
 
     @EventListener(ApplicationReadyEvent.class)
     public void openBrowser() {
+        // Only open browser if not running in Electron
+        // Electron will handle the UI, so we skip browser opening
+        String electronMode = System.getProperty("electron.mode");
+        if (electronMode != null && electronMode.equals("true")) {
+            System.out.println("\n✅ KonvertR backend is running!");
+            System.out.println("📡 Server: http://localhost:8080");
+            System.out.println("🔒 Running in Electron mode\n");
+            return;
+        }
+        
+        // Original behavior for standalone mode
         try {
             Desktop desktop = Desktop.getDesktop();
             if (desktop.isSupported(Desktop.Action.BROWSE)) {

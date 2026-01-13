@@ -27,6 +27,8 @@
         <snakeyaml.version>2.2</snakeyaml.version>
         <protobuf.version>3.24.3</protobuf.version>
         <toml4j.version>0.7.2</toml4j.version>
+        <proguard.version>7.4.2</proguard.version>
+        <proguard.dir>${project.build.directory}/proguard</proguard.dir>
     </properties>
 
     <dependencies>
@@ -129,6 +131,9 @@
                     </execution>
                 </executions>
             </plugin>
+            
+            <!-- Note: ProGuard obfuscation is handled by obfuscate-jar.bat script -->
+            <!-- This allows more flexibility and avoids Maven plugin dependency issues -->
         </plugins>
     </build>
 </project>
