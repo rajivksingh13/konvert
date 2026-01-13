@@ -1,4 +1,4 @@
-name: Build Windows Portable EXE
+name: Build Windows Portable Package
 
 on:
   workflow_dispatch:
@@ -73,33 +73,6 @@ jobs:
         Write-Host "Found JAR: $($jarFile.Name)"
         $jarName = $jarFile.Name
     
-    - name: Install 7-Zip (for self-extracting EXE)
-      run: |
-        # Check if 7-Zip is already installed
-        $7zipPath = "${env:ProgramFiles}\7-Zip\7z.exe"
-        if (-not (Test-Path $7zipPath)) {
-          $7zipPath = "${env:ProgramFiles(x86)}\7-Zip\7z.exe"
-        }
-        
-        if (-not (Test-Path $7zipPath)) {
-          Write-Host "7-Zip not found. Installing via Chocolatey..."
-          choco install 7zip -y --no-progress
-          
-          # Refresh PATH
-          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-          
-          # Verify installation
-          $7zipPath = "${env:ProgramFiles}\7-Zip\7z.exe"
-          if (Test-Path $7zipPath) {
-            Write-Host "✓ 7-Zip installed successfully"
-          } else {
-            Write-Host "ERROR: Failed to install 7-Zip!"
-            exit 1
-          }
-        } else {
-          Write-Host "✓ 7-Zip already installed"
-        }
-    
     - name: Clean previous builds
       run: |
         if (Test-Path "dist") {
@@ -110,7 +83,7 @@ jobs:
         }
         Write-Host "✓ Cleanup complete"
     
-    - name: Build single portable EXE
+    - name: Build portable package
       run: |
         $version = "1.0.0"
         if ($env:GITHUB_REF -like "refs/tags/v*") {
@@ -125,12 +98,12 @@ jobs:
         
         $jarName = $jarFile.Name
         
-        Write-Host "Building single portable EXE (self-extracting)..."
+        Write-Host "Building portable package..."
         Write-Host "JAR: $jarName"
         Write-Host "Version: $version"
         
-        # Step 1: Create app-image with jpackage (pure Java solution)
-        Write-Host "Step 1: Creating application package with jpackage..."
+        # Create app-image with jpackage (pure Java solution - most reliable)
+        Write-Host "Creating application package with jpackage..."
         jpackage --input target `
             --name KonvertR `
             --main-jar $jarName `
@@ -157,131 +130,51 @@ jobs:
         
         Write-Host "✓ Application package created"
         
-        # Step 2: Create self-extracting EXE using 7-Zip (pure Java + 7-Zip, no .NET)
-        Write-Host "Step 2: Creating self-extracting EXE using 7-Zip..."
+        # Create portable ZIP package (simple and reliable - no external tools needed)
+        Write-Host "Creating portable ZIP package..."
+        $zipPath = "dist\KonvertR-Portable-$version.zip"
+        if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
         
-        # Find 7-Zip (should be installed in previous step)
-        $7zipPath = "${env:ProgramFiles}\7-Zip\7z.exe"
-        if (-not (Test-Path $7zipPath)) {
-          $7zipPath = "${env:ProgramFiles(x86)}\7-Zip\7z.exe"
-        }
+        Compress-Archive -Path "dist\KonvertR\*" -DestinationPath $zipPath -Force
         
-        if (-not (Test-Path $7zipPath)) {
-          Write-Host "ERROR: 7-Zip not found! It should have been installed in a previous step."
-          Write-Host "Falling back to portable ZIP package..."
-          # Fallback: Create ZIP package
-          $zipPath = "dist\KonvertR-Portable-$version.zip"
-          Compress-Archive -Path "dist\KonvertR\*" -DestinationPath $zipPath -Force
-          Write-Host "✓ Portable ZIP package created: $zipPath"
-          Write-Host "  Users can extract and run KonvertR\KonvertR.exe"
-          exit 0
-        }
-        
-        Write-Host "Using 7-Zip at: $7zipPath"
-        
-        # Create 7z archive
-        $archivePath = "dist\KonvertR-Temp.7z"
-        if (Test-Path $archivePath) { Remove-Item $archivePath -Force }
-        
-        & $7zipPath a -t7z -mx=9 "$archivePath" "dist\KonvertR\*" | Out-Null
-        
-        if (-not (Test-Path $archivePath)) {
-          Write-Host "ERROR: Failed to create 7z archive!"
+        if (-not (Test-Path $zipPath)) {
+          Write-Host "ERROR: Failed to create ZIP package!"
           exit 1
         }
         
-        Write-Host "✓ 7z archive created"
-        
-        # Create SFX config for 7-Zip
-        $sfxConfigLines = @(
-            ";!@Install@!UTF-8!",
-            "Title=`"KonvertR - Universal Format Converter`"",
-            "BeginPrompt=`"Extracting KonvertR...`"",
-            "ExecuteFile=`"KonvertR\\KonvertR.exe`"",
-            "ExecuteParameters=`"`"",
-            "GUIMode=`"1`"",
-            "ExtractPathText=`"Extracting to temporary folder...`"",
-            "ExtractTitle=`"Extracting`"",
-            "FinishMessage=`"Launching KonvertR...`"",
-            ";!@InstallEnd@!"
-        )
-        $sfxConfig = $sfxConfigLines -join "`n"
-        $sfxConfigPath = "dist\sfx_config.txt"
-        $sfxConfig | Out-File -FilePath $sfxConfigPath -Encoding ASCII -NoNewline
-        
-        # Get 7-Zip SFX module
-        $sfxModulePath = "${env:ProgramFiles}\7-Zip\7z.sfx"
-        if (-not (Test-Path $sfxModulePath)) {
-          $sfxModulePath = "${env:ProgramFiles(x86)}\7-Zip\7z.sfx"
-        }
-        
-        if (-not (Test-Path $sfxModulePath)) {
-          Write-Host "ERROR: 7-Zip SFX module not found!"
-          exit 1
-        }
-        
-        # Combine: SFX module + config + archive = self-extracting EXE
-        $finalExePath = "dist\KonvertR-Portable-$version.exe"
-        if (Test-Path $finalExePath) { Remove-Item $finalExePath -Force }
-        
-        $sfxBytes = [System.IO.File]::ReadAllBytes($sfxModulePath)
-        $configBytes = [System.IO.File]::ReadAllBytes($sfxConfigPath)
-        $archiveBytes = [System.IO.File]::ReadAllBytes($archivePath)
-        
-        $combinedBytes = New-Object byte[] ($sfxBytes.Length + $configBytes.Length + $archiveBytes.Length)
-        [System.Array]::Copy($sfxBytes, 0, $combinedBytes, 0, $sfxBytes.Length)
-        [System.Array]::Copy($configBytes, 0, $combinedBytes, $sfxBytes.Length, $configBytes.Length)
-        [System.Array]::Copy($archiveBytes, 0, $combinedBytes, $sfxBytes.Length + $configBytes.Length, $archiveBytes.Length)
-        
-        [System.IO.File]::WriteAllBytes($finalExePath, $combinedBytes)
-        
-        # Cleanup
-        Remove-Item $archivePath -Force -ErrorAction SilentlyContinue
-        Remove-Item $sfxConfigPath -Force -ErrorAction SilentlyContinue
-        
-        Write-Host "✓ Self-extracting EXE created (pure Java + 7-Zip, no .NET required)"
-        
-        # Verify the EXE was created
-        if (-not (Test-Path $finalExePath)) {
-          Write-Host "ERROR: Self-extracting EXE was not created!"
-          exit 1
-        }
-        
-        $exeSize = (Get-Item $finalExePath).Length / 1MB
-        Write-Host "✓ Self-extracting EXE created: $finalExePath"
-        Write-Host "  Size: $([math]::Round($exeSize, 2)) MB"
-        Write-Host "  - Pure Java solution (jpackage + 7-Zip, no .NET required)"
+        $zipSize = (Get-Item $zipPath).Length / 1MB
+        Write-Host "✓ Portable ZIP package created: $zipPath"
+        Write-Host "  Size: $([math]::Round($zipSize, 2)) MB"
+        Write-Host "  - Pure Java solution (jpackage only, no external tools)"
         Write-Host "  - Bundles JVM, JAR, and all dependencies"
-        Write-Host "  - Extracts to temp folder when run"
-        Write-Host "  - Launches KonvertR automatically"
         Write-Host "  - No JAR or source code visible to users"
-        Write-Host "  - Users just double-click to run (no installation needed!)"
+        Write-Host "  - Users extract ZIP and run KonvertR\KonvertR.exe"
+        Write-Host "  - Completely portable - no installation needed!"
     
-    - name: Verify executable
+    - name: Verify package
       run: |
-        Write-Host "Verifying executable..."
+        Write-Host "Verifying package..."
         
-        $exeFile = Get-ChildItem "dist\KonvertR*.exe" | Select-Object -First 1
+        $zipFile = Get-ChildItem "dist\KonvertR-Portable-*.zip" | Select-Object -First 1
         
-        if (-not $exeFile -or -not (Test-Path $exeFile.FullName)) {
-          Write-Host "ERROR: Portable EXE not found!"
+        if (-not $zipFile -or -not (Test-Path $zipFile.FullName)) {
+          Write-Host "ERROR: Portable ZIP package not found!"
           exit 1
         }
         
-        $exeInfo = Get-Item $exeFile.FullName
-        $exeSize = $exeInfo.Length / 1MB
+        $zipInfo = Get-Item $zipFile.FullName
+        $zipSize = $zipInfo.Length / 1MB
         
-        Write-Host "  ✓ Found: $($exeFile.Name)"
-        Write-Host "  ✓ Size: $([math]::Round($exeSize, 2)) MB"
-        Write-Host "  ✓ Type: Self-extracting EXE (pure Java + 7-Zip)"
+        Write-Host "  ✓ Found: $($zipFile.Name)"
+        Write-Host "  ✓ Size: $([math]::Round($zipSize, 2)) MB"
+        Write-Host "  ✓ Type: Portable ZIP Package (pure Java, jpackage)"
         Write-Host ""
-        Write-Host "✓ Executable verified"
-        Write-Host "  - Pure Java solution (jpackage + 7-Zip, no .NET required)"
-        Write-Host "  - Single EXE file contains everything"
+        Write-Host "✓ Package verified"
+        Write-Host "  - Pure Java solution (jpackage only, no external tools)"
+        Write-Host "  - ZIP contains KonvertR folder with KonvertR.exe"
         Write-Host "  - No JAR or source code exposed"
-        Write-Host "  - Extracts to temp folder when run"
-        Write-Host "  - Launches automatically, no installation needed"
-        Write-Host "  - Users just double-click to run"
+        Write-Host "  - Users extract ZIP and run KonvertR\KonvertR.exe"
+        Write-Host "  - Completely portable - no installation needed"
     
     - name: Get version from tag or default
       id: get_version
@@ -305,17 +198,17 @@ jobs:
         
         Write-Host "Creating distribution package: $PACKAGE_NAME"
         
-        $exeFile = Get-ChildItem "dist\KonvertR*.exe" | Select-Object -First 1
+        $zipFile = Get-ChildItem "dist\KonvertR-Portable-*.zip" | Select-Object -First 1
         
-        if (-not $exeFile -or -not (Test-Path $exeFile.FullName)) {
-          Write-Host "ERROR: Portable EXE not found!"
+        if (-not $zipFile -or -not (Test-Path $zipFile.FullName)) {
+          Write-Host "ERROR: Portable ZIP package not found!"
           exit 1
         }
         
         New-Item -ItemType Directory -Force -Path $PACKAGE_NAME | Out-Null
         
-        Copy-Item -Path $exeFile.FullName -Destination "$PACKAGE_NAME\$($exeFile.Name)" -Force
-        Write-Host "  ✓ Copied portable EXE: $($exeFile.Name)"
+        Copy-Item -Path $zipFile.FullName -Destination "$PACKAGE_NAME\$($zipFile.Name)" -Force
+        Write-Host "  ✓ Copied portable ZIP: $($zipFile.Name)"
         
         $readmeLines = @(
             "KonvertR - Universal Format Converter",
@@ -325,18 +218,18 @@ jobs:
             "QUICK START",
             "========================================",
             "",
-            "1. Double-click KonvertR-Portable-$VERSION.exe to run",
-            "2. The application will extract to a temp folder and launch automatically",
-            "3. No installation required - just double-click and run!",
-            "4. The temp folder is cleaned up automatically when you exit",
+            "1. Extract the ZIP file to any location (e.g., Desktop, USB drive)",
+            "2. Open the extracted KonvertR folder",
+            "3. Double-click KonvertR.exe to run",
+            "4. No installation required - completely portable!",
             "",
-            "Everything is bundled in this single EXE file:",
-            "  - Java Runtime (JVM) - bundled inside",
-            "  - Application code - bundled inside",
+            "Everything is bundled in the KonvertR folder:",
+            "  - Java Runtime (JVM) - included in the package",
+            "  - Application code - included in the package",
             "  - All dependencies - included",
             "",
             "No JAR files or source code are exposed - everything is packaged!",
-            "The application extracts to a temp folder when run and cleans up on exit.",
+            "The KonvertR folder contains everything needed - just extract and run.",
             "",
             "========================================",
             "SYSTEM REQUIREMENTS",
@@ -361,12 +254,12 @@ jobs:
             "TROUBLESHOOTING",
             "========================================",
             "",
-            "If the EXE doesn't run:",
-            "1. Try running as Administrator",
-            "2. Check Windows Firewall settings",
-            "3. Ensure port 8080 is not in use",
-            "4. Check Windows Defender/antivirus settings (may block self-extracting EXE)",
-            "5. Make sure you have write permissions to temp folder",
+            "If KonvertR.exe doesn't run:",
+            "1. Make sure you extracted the entire KonvertR folder (not just the EXE)",
+            "2. Try running as Administrator",
+            "3. Check Windows Firewall settings",
+            "4. Ensure port 8080 is not in use",
+            "5. Check Windows Defender/antivirus settings",
             "",
             "========================================"
         )
@@ -386,11 +279,11 @@ jobs:
         Write-Host "  Package contains only the portable EXE and README"
         Write-Host "  No JAR files or source code exposed!"
     
-    - name: Upload Windows executable
+    - name: Upload Windows portable package
       uses: actions/upload-artifact@v4
       with:
-        name: windows-executable
-        path: dist/KonvertR*.exe
+        name: windows-portable-package
+        path: dist/KonvertR-Portable-*.zip
         retention-days: 30
     
     - name: Upload Windows distribution package
@@ -411,21 +304,20 @@ jobs:
           Write-Host "Size: $([math]::Round($zipFile.Length / 1MB, 2)) MB"
           Write-Host ""
           Write-Host "Package includes:"
-          Write-Host "  - KonvertR-Portable-*.exe (Self-extracting portable EXE - single file)"
+          Write-Host "  - KonvertR-Portable-*.zip (Portable ZIP package)"
           Write-Host "  - README.txt (user guide)"
           Write-Host ""
           Write-Host "Features:"
-          Write-Host "  ✓ Single EXE file - no JAR or source code exposed"
+          Write-Host "  ✓ Portable ZIP package - no JAR or source code exposed"
           Write-Host "  ✓ Java Runtime bundled - no JRE needed"
-          Write-Host "  ✓ Double-click to run - no installation required"
-          Write-Host "  ✓ Extracts to temp folder automatically"
-          Write-Host "  ✓ Cleans up on exit"
+          Write-Host "  ✓ Extract and run - no installation required"
           Write-Host "  ✓ All dependencies included"
+          Write-Host "  ✓ Simple and reliable - uses only jpackage (pure Java)"
           Write-Host ""
           Write-Host "Usage:"
-          Write-Host "  1. Extract ZIP file"
-          Write-Host "  2. Double-click KonvertR-Portable-*.exe"
-          Write-Host "  3. Application extracts and launches automatically"
+          Write-Host "  1. Extract ZIP file to any location"
+          Write-Host "  2. Open the KonvertR folder"
+          Write-Host "  3. Double-click KonvertR.exe"
           Write-Host "  4. No installation needed - completely portable!"
           Write-Host "========================================"
         }
@@ -440,18 +332,19 @@ jobs:
           
           ### Quick Start
           1. Download and extract the ZIP file
-          2. Double-click `KonvertR-Portable-*.exe` to run
-          3. The application will extract to a temp folder and launch automatically
+          2. Open the extracted `KonvertR` folder
+          3. Double-click `KonvertR.exe` to run
           4. No installation required - completely portable!
           
-          **Self-extracting Portable EXE** - Everything bundled in one file!
+          **Portable ZIP Package** - Simple, reliable, and easy to use!
           
           ### What's Included
-          - ✅ KonvertR-Portable-*.exe - Self-extracting portable EXE (single file, double-click to run)
-          - ✅ Java Runtime bundled (inside EXE)
-          - ✅ All dependencies included (inside EXE)
+          - ✅ KonvertR-Portable-*.zip - Portable ZIP package (extract and run)
+          - ✅ KonvertR folder with KonvertR.exe (ready to run)
+          - ✅ Java Runtime bundled (included in package)
+          - ✅ All dependencies included (included in package)
           - ✅ No JAR files or source code exposed - everything is packaged!
-          - ✅ Extracts to temp folder when run, cleans up on exit
+          - ✅ Pure Java solution - uses only jpackage (no external tools)
           
           ### System Requirements
           - Windows 10 or later
