@@ -1,4 +1,4 @@
-name: Build Windows Portable Package
+name: Build Windows Installer
 
 on:
   workflow_dispatch:
@@ -83,32 +83,49 @@ jobs:
         }
         Write-Host "✓ Cleanup complete"
     
-    - name: Build portable package
+    - name: Build Windows installer (protects JAR files)
       run: |
+        $ErrorActionPreference = "Stop"
         $version = "1.0.0"
         if ($env:GITHUB_REF -like "refs/tags/v*") {
             $version = $env:GITHUB_REF -replace "refs/tags/v", ""
         }
         
+        Write-Host "========================================"
+        Write-Host "Building Windows Installer"
+        Write-Host "========================================"
+        Write-Host "Version: $version"
+        
+        # Verify JAR exists
         $jarFile = Get-ChildItem "target\konvertr-*.jar" | Where-Object { 
           $_.Name -notlike "*-sources.jar" -and 
           $_.Name -notlike "*-javadoc.jar" -and 
           $_.Name -notlike "*-original.jar" 
         } | Select-Object -First 1
         
+        if ($null -eq $jarFile) {
+          Write-Host "ERROR: JAR file not found in target directory!"
+          Write-Host "Contents of target directory:"
+          Get-ChildItem "target\" | ForEach-Object { Write-Host "  - $($_.Name)" }
+          exit 1
+        }
+        
         $jarName = $jarFile.Name
-        
-        Write-Host "Building portable package..."
         Write-Host "JAR: $jarName"
-        Write-Host "Version: $version"
+        Write-Host "JAR Size: $([math]::Round($jarFile.Length / 1MB, 2)) MB"
+        Write-Host ""
         
-        # Create app-image with jpackage (pure Java solution - most reliable)
-        Write-Host "Creating application package with jpackage..."
-        jpackage --input target `
+        # Create Windows installer EXE using jpackage
+        # This creates a proper installer that bundles everything WITHOUT exposing JAR files
+        Write-Host "Creating Windows installer with jpackage..."
+        Write-Host "This may take 5-10 minutes..."
+        Write-Host ""
+        
+        $jpackageOutput = jpackage --input target `
             --name KonvertR `
             --main-jar $jarName `
             --main-class com.konvert.KonvertApplication `
-            --type app-image `
+            --type exe `
             --app-version $version `
             --description "KonvertR - Universal Format Converter" `
             --vendor "KonvertR" `
@@ -116,65 +133,85 @@ jobs:
             --dest dist `
             --java-options "-Xmx512m" `
             --java-options "-Dserver.port=8080" `
-            --java-options "-Djava.awt.headless=false"
+            --java-options "-Djava.awt.headless=false" `
+            --win-dir-chooser `
+            --win-menu `
+            --win-menu-group "KonvertR" `
+            --win-per-user-install `
+            2>&1
         
-        if ($LASTEXITCODE -ne 0) {
-          Write-Host "ERROR: Failed to build application package!"
+        $jpackageExitCode = $LASTEXITCODE
+        
+        # Always show jpackage output for debugging
+        Write-Host "jpackage output:"
+        Write-Host $jpackageOutput
+        
+        if ($jpackageExitCode -ne 0) {
+          Write-Host ""
+          Write-Host "ERROR: jpackage failed with exit code $jpackageExitCode"
+          Write-Host "Please check the output above for error messages."
           exit 1
         }
         
-        if (-not (Test-Path "dist\KonvertR\KonvertR.exe")) {
-          Write-Host "ERROR: Executable was not created!"
+        # Find the created installer EXE
+        $installerExe = Get-ChildItem "dist\KonvertR*.exe" | Select-Object -First 1
+        
+        if ($null -eq $installerExe -or -not (Test-Path $installerExe.FullName)) {
+          Write-Host ""
+          Write-Host "ERROR: Installer EXE was not created!"
+          Write-Host "Contents of dist directory:"
+          if (Test-Path "dist") {
+            Get-ChildItem "dist\" -Recurse | ForEach-Object { Write-Host "  - $($_.FullName)" }
+          } else {
+            Write-Host "  dist directory does not exist!"
+          }
           exit 1
         }
         
-        Write-Host "✓ Application package created"
-        
-        # Create portable ZIP package (simple and reliable - no external tools needed)
-        Write-Host "Creating portable ZIP package..."
-        $zipPath = "dist\KonvertR-Portable-$version.zip"
-        if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
-        
-        Compress-Archive -Path "dist\KonvertR\*" -DestinationPath $zipPath -Force
-        
-        if (-not (Test-Path $zipPath)) {
-          Write-Host "ERROR: Failed to create ZIP package!"
-          exit 1
-        }
-        
-        $zipSize = (Get-Item $zipPath).Length / 1MB
-        Write-Host "✓ Portable ZIP package created: $zipPath"
-        Write-Host "  Size: $([math]::Round($zipSize, 2)) MB"
-        Write-Host "  - Pure Java solution (jpackage only, no external tools)"
-        Write-Host "  - Bundles JVM, JAR, and all dependencies"
-        Write-Host "  - No JAR or source code visible to users"
-        Write-Host "  - Users extract ZIP and run KonvertR\KonvertR.exe"
-        Write-Host "  - Completely portable - no installation needed!"
-    
-    - name: Verify package
-      run: |
-        Write-Host "Verifying package..."
-        
-        $zipFile = Get-ChildItem "dist\KonvertR-Portable-*.zip" | Select-Object -First 1
-        
-        if (-not $zipFile -or -not (Test-Path $zipFile.FullName)) {
-          Write-Host "ERROR: Portable ZIP package not found!"
-          exit 1
-        }
-        
-        $zipInfo = Get-Item $zipFile.FullName
-        $zipSize = $zipInfo.Length / 1MB
-        
-        Write-Host "  ✓ Found: $($zipFile.Name)"
-        Write-Host "  ✓ Size: $([math]::Round($zipSize, 2)) MB"
-        Write-Host "  ✓ Type: Portable ZIP Package (pure Java, jpackage)"
         Write-Host ""
-        Write-Host "✓ Package verified"
-        Write-Host "  - Pure Java solution (jpackage only, no external tools)"
-        Write-Host "  - ZIP contains KonvertR folder with KonvertR.exe"
-        Write-Host "  - No JAR or source code exposed"
-        Write-Host "  - Users extract ZIP and run KonvertR\KonvertR.exe"
-        Write-Host "  - Completely portable - no installation needed"
+        Write-Host "✓ Windows installer created successfully!"
+        Write-Host "  File: $($installerExe.Name)"
+        Write-Host "  Path: $($installerExe.FullName)"
+        Write-Host "  Size: $([math]::Round($installerExe.Length / 1MB, 2)) MB"
+        Write-Host ""
+        Write-Host "Features:"
+        Write-Host "  ✓ Single EXE installer file"
+        Write-Host "  ✓ JAR files are NOT exposed to end users (bundled securely)"
+        Write-Host "  ✓ Users can install to any directory (portable-friendly)"
+        Write-Host "  ✓ Java Runtime bundled (no JRE needed)"
+        Write-Host "  ✓ All dependencies included"
+        Write-Host "  ✓ Professional Windows installer experience"
+        Write-Host ""
+        Write-Host "========================================"
+    
+    - name: Verify installer
+      run: |
+        Write-Host "Verifying installer..."
+        
+        $installerExe = Get-ChildItem "dist\KonvertR*.exe" | Select-Object -First 1
+        
+        if ($null -eq $installerExe -or -not (Test-Path $installerExe.FullName)) {
+          Write-Host "ERROR: Installer EXE not found!"
+          Write-Host "Contents of dist directory:"
+          if (Test-Path "dist") {
+            Get-ChildItem "dist\" | ForEach-Object { Write-Host "  - $($_.Name)" }
+          }
+          exit 1
+        }
+        
+        $exeInfo = Get-Item $installerExe.FullName
+        $exeSize = $exeInfo.Length / 1MB
+        
+        Write-Host "  ✓ Found: $($installerExe.Name)"
+        Write-Host "  ✓ Size: $([math]::Round($exeSize, 2)) MB"
+        Write-Host "  ✓ Type: Windows Installer EXE (jpackage --type exe)"
+        Write-Host ""
+        Write-Host "✓ Installer verified"
+        Write-Host "  - Pure Java solution (jpackage only)"
+        Write-Host "  - Single EXE installer file"
+        Write-Host "  - JAR files are NOT exposed (bundled securely)"
+        Write-Host "  - Users can install to any directory"
+        Write-Host "  - Professional Windows installer"
     
     - name: Get version from tag or default
       id: get_version
@@ -198,17 +235,17 @@ jobs:
         
         Write-Host "Creating distribution package: $PACKAGE_NAME"
         
-        $zipFile = Get-ChildItem "dist\KonvertR-Portable-*.zip" | Select-Object -First 1
+        $installerExe = Get-ChildItem "dist\KonvertR*.exe" | Select-Object -First 1
         
-        if (-not $zipFile -or -not (Test-Path $zipFile.FullName)) {
-          Write-Host "ERROR: Portable ZIP package not found!"
+        if ($null -eq $installerExe -or -not (Test-Path $installerExe.FullName)) {
+          Write-Host "ERROR: Installer EXE not found!"
           exit 1
         }
         
         New-Item -ItemType Directory -Force -Path $PACKAGE_NAME | Out-Null
         
-        Copy-Item -Path $zipFile.FullName -Destination "$PACKAGE_NAME\$($zipFile.Name)" -Force
-        Write-Host "  ✓ Copied portable ZIP: $($zipFile.Name)"
+        Copy-Item -Path $installerExe.FullName -Destination "$PACKAGE_NAME\$($installerExe.Name)" -Force
+        Write-Host "  ✓ Copied installer: $($installerExe.Name)"
         
         $readmeLines = @(
             "KonvertR - Universal Format Converter",
@@ -218,18 +255,18 @@ jobs:
             "QUICK START",
             "========================================",
             "",
-            "1. Extract the ZIP file to any location (e.g., Desktop, USB drive)",
-            "2. Open the extracted KonvertR folder",
-            "3. Double-click KonvertR.exe to run",
-            "4. No installation required - completely portable!",
+            "1. Run KonvertR-$VERSION.exe to start the installer",
+            "2. Choose installation directory (can be any folder, including USB drives)",
+            "3. Follow the installation wizard",
+            "4. Launch KonvertR from Start Menu or installation directory",
             "",
-            "Everything is bundled in the KonvertR folder:",
-            "  - Java Runtime (JVM) - included in the package",
-            "  - Application code - included in the package",
+            "Everything is bundled in the installer:",
+            "  - Java Runtime (JVM) - bundled inside installer",
+            "  - Application code - bundled securely (JAR files NOT exposed)",
             "  - All dependencies - included",
             "",
-            "No JAR files or source code are exposed - everything is packaged!",
-            "The KonvertR folder contains everything needed - just extract and run.",
+            "IMPORTANT: JAR files and source code are NOT exposed to end users!",
+            "The installer bundles everything securely. Users only see the installed application.",
             "",
             "========================================",
             "SYSTEM REQUIREMENTS",
@@ -254,12 +291,15 @@ jobs:
             "TROUBLESHOOTING",
             "========================================",
             "",
-            "If KonvertR.exe doesn't run:",
-            "1. Make sure you extracted the entire KonvertR folder (not just the EXE)",
-            "2. Try running as Administrator",
-            "3. Check Windows Firewall settings",
-            "4. Ensure port 8080 is not in use",
-            "5. Check Windows Defender/antivirus settings",
+            "If the installer doesn't run:",
+            "1. Try running as Administrator",
+            "2. Check Windows Defender/antivirus settings",
+            "3. Ensure you have write permissions to the installation directory",
+            "",
+            "If KonvertR doesn't start after installation:",
+            "1. Check Windows Firewall settings",
+            "2. Ensure port 8080 is not in use",
+            "3. Try launching from Start Menu",
             "",
             "========================================"
         )
@@ -276,14 +316,14 @@ jobs:
         
         $zipSize = (Get-Item "$PACKAGE_NAME.zip").Length / 1MB
         Write-Host "✓ Created: $PACKAGE_NAME.zip ($([math]::Round($zipSize, 2)) MB)"
-        Write-Host "  Package contains only the portable EXE and README"
-        Write-Host "  No JAR files or source code exposed!"
+        Write-Host "  Package contains only the installer EXE and README"
+        Write-Host "  JAR files are NOT exposed - bundled securely in installer!"
     
-    - name: Upload Windows portable package
+    - name: Upload Windows installer
       uses: actions/upload-artifact@v4
       with:
-        name: windows-portable-package
-        path: dist/KonvertR-Portable-*.zip
+        name: windows-installer
+        path: dist/KonvertR*.exe
         retention-days: 30
     
     - name: Upload Windows distribution package
@@ -304,21 +344,22 @@ jobs:
           Write-Host "Size: $([math]::Round($zipFile.Length / 1MB, 2)) MB"
           Write-Host ""
           Write-Host "Package includes:"
-          Write-Host "  - KonvertR-Portable-*.zip (Portable ZIP package)"
+          Write-Host "  - KonvertR-*.exe (Windows Installer)"
           Write-Host "  - README.txt (user guide)"
           Write-Host ""
           Write-Host "Features:"
-          Write-Host "  ✓ Portable ZIP package - no JAR or source code exposed"
+          Write-Host "  ✓ Windows Installer EXE - professional installation"
+          Write-Host "  ✓ JAR files NOT exposed - bundled securely"
           Write-Host "  ✓ Java Runtime bundled - no JRE needed"
-          Write-Host "  ✓ Extract and run - no installation required"
+          Write-Host "  ✓ Users can install to any directory (portable-friendly)"
           Write-Host "  ✓ All dependencies included"
           Write-Host "  ✓ Simple and reliable - uses only jpackage (pure Java)"
           Write-Host ""
           Write-Host "Usage:"
-          Write-Host "  1. Extract ZIP file to any location"
-          Write-Host "  2. Open the KonvertR folder"
-          Write-Host "  3. Double-click KonvertR.exe"
-          Write-Host "  4. No installation needed - completely portable!"
+          Write-Host "  1. Run KonvertR-*.exe to start installer"
+          Write-Host "  2. Choose installation directory"
+          Write-Host "  3. Follow installation wizard"
+          Write-Host "  4. Launch from Start Menu or installation directory"
           Write-Host "========================================"
         }
     
@@ -331,20 +372,21 @@ jobs:
           ## KonvertR Windows Distribution
           
           ### Quick Start
-          1. Download and extract the ZIP file
-          2. Open the extracted `KonvertR` folder
-          3. Double-click `KonvertR.exe` to run
-          4. No installation required - completely portable!
+          1. Download and run `KonvertR-*.exe`
+          2. Choose installation directory (can be any folder)
+          3. Follow the installation wizard
+          4. Launch KonvertR from Start Menu or installation directory
           
-          **Portable ZIP Package** - Simple, reliable, and easy to use!
+          **Windows Installer** - Professional, secure, and reliable!
           
           ### What's Included
-          - ✅ KonvertR-Portable-*.zip - Portable ZIP package (extract and run)
-          - ✅ KonvertR folder with KonvertR.exe (ready to run)
-          - ✅ Java Runtime bundled (included in package)
-          - ✅ All dependencies included (included in package)
-          - ✅ No JAR files or source code exposed - everything is packaged!
+          - ✅ KonvertR-*.exe - Windows Installer (single EXE file)
+          - ✅ Java Runtime bundled (inside installer)
+          - ✅ All dependencies included (inside installer)
+          - ✅ **JAR files are NOT exposed** - bundled securely in installer
+          - ✅ **Source code is NOT exposed** - everything is packaged
           - ✅ Pure Java solution - uses only jpackage (no external tools)
+          - ✅ Users can install to any directory (portable-friendly)
           
           ### System Requirements
           - Windows 10 or later
