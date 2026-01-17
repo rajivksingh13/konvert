@@ -86,13 +86,13 @@ const Formatter = () => {
       id: 'formatters',
       title: 'Formatters',
       icon: Wand2,
-      description: 'Pretty-print JSON, YAML, and CSV for better readability'
+      description: 'Standardize data presentation to ensure consistent readability and review'
     },
     {
       id: 'cleanup',
       title: 'Cleanup & Minification',
       icon: Minus,
-      description: 'Minify data, remove comments, and beautify CSS'
+      description: 'Reduce payload size and remove non-essential artifacts for production readiness'
     }
   ];
 
@@ -282,7 +282,7 @@ const JsonFormatterSection = () => {
     <Section
       title="JSON Formatter"
       icon={Wand2}
-      description="Pretty-print JSON for better readability"
+      description="Standardize JSON structure and formatting for better readability"
       defaultExpanded={true}
       actions={
         <>
@@ -566,7 +566,7 @@ address:
     <Section
       title="YAML Formatter"
       icon={Wand2}
-      description="Pretty-print YAML for better readability"
+      description="Standardize YAML structure and formatting for better readability"
       actions={
         <>
           <motion.button
@@ -850,7 +850,7 @@ Bob,35,Chicago,true`;
     <Section
       title="CSV Formatter"
       icon={Wand2}
-      description="Format CSV with optional column alignment"
+      description="Normalize CSV layout and alignment"
       actions={
         <>
           <motion.button
@@ -1112,7 +1112,7 @@ address.zip=10001`;
     <Section
       title="TOON Formatter"
       icon={Sparkles}
-      description="Format TOON with custom delimiters (comma, tab, pipe)"
+      description="Standardize TOON encoding and delimiters (comma, tab, pipe)"
       actions={
         <>
           <motion.button
@@ -1450,7 +1450,7 @@ address:
     <Section
       title="Minify"
       icon={Minus}
-      description="Minify JSON, YAML, XML, or CSS to reduce file size"
+      description="Minimize payload size while preserving semantic integrity"
       defaultExpanded={true}
       actions={
         <>
@@ -1811,7 +1811,7 @@ active: true`;
     <Section
       title="Remove Comments & Extra Whitespace"
       icon={Minus}
-      description="Remove comments and extra whitespace from JSON, YAML, XML, or CSS"
+      description="Remove non-functional elements to enforce clean artifacts"
       actions={
         <>
           <motion.button
@@ -2152,7 +2152,7 @@ const CssBeautifySection = () => {
     <Section
       title="CSS Beautify"
       icon={Minus}
-      description="Beautify CSS for better readability"
+      description="Standardize CSS formatting for maintainability"
       actions={
         <>
           <motion.button

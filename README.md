@@ -154,6 +154,13 @@ Validate data structure for:
    - Or manually open: `http://localhost:8080`
    - ✅ **No internet required!** Everything runs locally.
 
+## 🍏 macOS Install Note (Unsigned App)
+
+If macOS says the app is damaged:
+1. Move `KonvertR.app` to `/Applications`
+2. Run `KonvertR-Setup.command` once (removes quarantine)
+3. Launch `KonvertR.app`
+
 ### Option 2: Development Mode (React + Spring Boot)
 
 1. **Start Spring Boot Backend**

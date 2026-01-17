@@ -703,7 +703,7 @@ const HashSection = () => {
                 Generating...
               </>
             ) : (
-              'Generate'
+              'Generate Artifact'
             )}
           </motion.button>
           <motion.button
@@ -1012,7 +1012,7 @@ const UUIDSection = () => {
                 Generating...
               </>
             ) : (
-              'Generate'
+              'Generate Artifact'
             )}
           </motion.button>
           <motion.button

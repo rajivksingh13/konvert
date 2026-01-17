@@ -107,13 +107,13 @@ const Files = () => {
       id: 'batch-processing',
       title: 'Batch Processing',
       icon: Package,
-      description: 'Convert multiple files at once, mixed format support, bulk download'
+      description: 'Execute bulk transformations across mixed-format datasets'
     },
     {
       id: 'compare-diff',
       title: 'Compare & Diff',
       icon: GitBranch,
-      description: 'Side-by-side file comparison, visual diff highlighting'
+      description: 'Identify structural and content-level differences across data assets'
     }
   ];
 
@@ -752,7 +752,7 @@ const BatchProcessingSection = () => {
     <Section
       title="Batch Processing"
       icon={Package}
-      description="Convert multiple files at once, mixed format support, bulk download"
+      description="Execute bulk transformations across mixed-format datasets"
       defaultExpanded={true}
       actions={
         <>
@@ -1228,7 +1228,7 @@ const CompareDiffSection = () => {
     <Section
       title="Compare & Diff"
       icon={GitBranch}
-      description="Side-by-side file comparison, visual diff highlighting"
+      description="Identify structural and content-level differences across data assets"
       defaultExpanded={true}
       actions={
         <>

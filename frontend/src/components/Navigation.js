@@ -19,10 +19,10 @@ const Navigation = ({ tabs, activeTab, onTabChange }) => {
   return (
     <nav className="sticky top-0 z-50 glass-effect border-b border-[var(--border-color)] shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="relative flex items-center justify-between h-16">
           {/* Brand */}
           <motion.div 
-            className="flex items-center gap-3 cursor-pointer"
+            className="flex items-center gap-3 cursor-pointer -ml-8"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             transition={{ type: "spring", stiffness: 400, damping: 17 }}
@@ -33,14 +33,16 @@ const Navigation = ({ tabs, activeTab, onTabChange }) => {
               </div>
               <div className="absolute -top-1 -right-1 w-3 h-3 bg-secondary-400 rounded-full border-2 border-[var(--bg-card)] shadow-sm"></div>
             </div>
-            <div className="flex flex-col">
+            <div className="flex flex-col min-w-0">
               <span className="text-2xl font-bold gradient-text leading-tight">KonvertR</span>
-              <span className="text-[10px] font-medium text-[var(--text-muted)] tracking-wide">Universal Data Format Converter & Toolkit.</span>
+              <span className="text-[10px] font-medium text-[var(--text-muted)] tracking-wide whitespace-nowrap overflow-hidden text-ellipsis max-w-[220px]">
+                Enterprise Data Hygiene & Validation Engine
+              </span>
             </div>
           </motion.div>
           
           {/* Navigation Items */}
-          <div className="hidden md:flex items-center gap-2 flex-1 justify-center">
+          <div className="hidden md:flex items-center gap-2 flex-1 justify-center pr-14 min-w-0 overflow-x-auto scrollbar-hide">
             {tabs.map((tab, index) => {
               const Icon = iconMap[tab.id];
               const isActive = activeTab === tab.id;
@@ -50,7 +52,7 @@ const Navigation = ({ tabs, activeTab, onTabChange }) => {
                   key={tab.id}
                   onClick={() => onTabChange(tab.id)}
                   className={`
-                    relative flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm
+                    relative flex items-center gap-2 px-3 py-1.5 rounded-xl font-medium text-sm
                     transition-all duration-200
                     ${isActive 
                       ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20' 
@@ -64,7 +66,7 @@ const Navigation = ({ tabs, activeTab, onTabChange }) => {
                   transition={{ delay: index * 0.1 }}
                 >
                   <Icon className="w-4 h-4" />
-                  <span>{tab.label}</span>
+                  <span className="whitespace-nowrap">{tab.label}</span>
                   {isActive && (
                     <motion.div
                       className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-full"
@@ -104,18 +106,20 @@ const Navigation = ({ tabs, activeTab, onTabChange }) => {
           </div>
           
           {/* Theme Toggle */}
-          <motion.button
-            onClick={toggleTheme}
-            className="p-2.5 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] 
-                     hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]
-                     transition-all duration-200"
-            whileHover={{ scale: 1.1, rotate: 15 }}
-            whileTap={{ scale: 0.9 }}
-            title="Toggle theme"
-            aria-label="Toggle theme"
-          >
-            <ThemeIcon className="w-5 h-5" />
-          </motion.button>
+          <div className="absolute right-0 inset-y-0 flex items-center">
+            <motion.button
+              onClick={toggleTheme}
+              className="p-2.5 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] 
+                       hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]
+                       transition-all duration-200"
+              whileHover={{ scale: 1.1, rotate: 15 }}
+              whileTap={{ scale: 0.9 }}
+              title="Toggle theme"
+              aria-label="Toggle theme"
+            >
+              <ThemeIcon className="w-5 h-5" />
+            </motion.button>
+          </div>
         </div>
       </div>
     </nav>

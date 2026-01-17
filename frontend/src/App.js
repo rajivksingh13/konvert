@@ -12,11 +12,11 @@ function App() {
   const [activeTab, setActiveTab] = useState('converter');
 
   const tabs = [
-    { id: 'converter', label: 'Transform', icon: '🔄' },
-    { id: 'formatter', label: 'Beautify', icon: '✨' },
-    { id: 'base64', label: 'Encode / Decode', icon: '🔐' },
-    { id: 'files', label: 'File Tools', icon: '📁' },
-    { id: 'utilities', label: 'ToolKit', icon: '🛠️' }
+    { id: 'converter', label: 'Normalize & Transform', icon: '🔄' },
+    { id: 'formatter', label: 'Standardize', icon: '✨' },
+    { id: 'base64', label: 'Encode, Decode & Inspect', icon: '🔐' },
+    { id: 'files', label: 'File Operations', icon: '📁' },
+    { id: 'utilities', label: 'Governance Utilities', icon: '🛠️' }
   ];
 
   useEffect(() => {

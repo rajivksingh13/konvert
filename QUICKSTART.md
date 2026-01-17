@@ -1,4 +1,4 @@
-# Quick Start Guide - Konvert (Java Edition)
+# Quick Start Guide - KonvertR (Java Edition)
 
 ## Prerequisites
 

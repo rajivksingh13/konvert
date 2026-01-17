@@ -79,6 +79,7 @@ jobs:
     - name: Install Electron dependencies
       working-directory: ./electron
       run: npm ci
+
     
     - name: Build Electron package (Windows)
       run: |
@@ -289,8 +290,9 @@ jobs:
           **macOS:**
           1. Download `KonvertR-Portable-*.zip` (macOS)
           2. Extract the ZIP file
-          3. Open the `KonvertR.app` folder
-          4. Double-click `KonvertR.app` to run
+          3. Move `KonvertR.app` to `/Applications`
+          4. Run `KonvertR-Setup.command` once (removes quarantine)
+          5. Launch `KonvertR.app`
           
           **No installation needed - runs directly!**
           

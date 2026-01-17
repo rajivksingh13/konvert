@@ -86,13 +86,13 @@ const Base64 = () => {
       id: 'encoding',
       title: 'Encoding / Decoding',
       icon: Lock,
-      description: 'Base64, URL, HTML entity, and Hex encoding/decoding'
+      description: 'Encode, Decode, and Safely inspect encoded data representations'
     },
     {
       id: 'tokens',
       title: 'Token Utilities',
       icon: Eye,
-      description: 'JWT decoder with header, payload, and signature inspection'
+      description: 'Inspect and analyze JWT authentication tokens without external exposure'
     }
   ];
 
@@ -280,7 +280,7 @@ const Base64Section = () => {
     <Section
       title="Base64 Encoding/Decoding"
       icon={Lock}
-      description="Encode text to Base64 or decode Base64 to text"
+      description="Encode or Decode Base64 data for secure transport and inspection"
       defaultExpanded={true}
       actions={
         <>
@@ -552,7 +552,7 @@ const UrlSection = () => {
     <Section
       title="URL Encoding/Decoding"
       icon={Link}
-      description="Encode or decode URL-encoded strings"
+      description="Encode or Decode URL data for safe transmission"
       actions={
         <>
           <motion.button
@@ -824,7 +824,7 @@ const HtmlSection = () => {
     <Section
       title="HTML Entity Encoding/Decoding"
       icon={Globe}
-      description="Encode or decode HTML entities"
+      description="Encode or Decode HTML entities to prevent misinterpretation"
       actions={
         <>
           <motion.button
@@ -1095,7 +1095,7 @@ const HexSection = () => {
     <Section
       title="Hex Encoding/Decoding"
       icon={Hash}
-      description="Encode text to hexadecimal or decode hex to text"
+      description="Inspect binary-safe hexadecimal representations"
       actions={
         <>
           <motion.button

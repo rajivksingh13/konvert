@@ -197,14 +197,14 @@ const Converter = () => {
       id: 'format-conversion',
       title: 'Format Conversion',
       icon: ArrowRightLeft,
-      description: 'Convert between JSON, YAML, TOML, TOON, XML, CSV, Protobuf, and Properties formats'
+      description: 'Normalize data assets across approved enterprise formats'
     },
     {
       id: 'data-transformation',
       title: 'Data Transformation',
       subtitle: '(Structural)',
       icon: Workflow,
-      description: 'Merge, flatten, rename keys, filter fields, and transform data structures'
+      description: 'Apply controlled structural transformations to align data with enterprise standards'
     }
   ];
 
@@ -288,8 +288,8 @@ const Converter = () => {
                       <ArrowRightLeft className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <h2 className="text-xl font-semibold text-[var(--text-primary)]">Convert Between Formats</h2>
-                      <p className="text-sm text-[var(--text-secondary)]">Transform your data between JSON, YAML, TOML, TOON, XML, CSV, Protobuf, and Properties formats</p>
+                      <h2 className="text-xl font-semibold text-[var(--text-primary)]">Normalize Between Formats</h2>
+                      <p className="text-sm text-[var(--text-secondary)]">Normalize data assets across JSON, YAML, TOML, TOON, XML, CSV, Protobuf, and Properties formats</p>
                     </div>
                   </div>
 
@@ -331,7 +331,7 @@ const Converter = () => {
                             ) : (
                               <>
                                 <ArrowRightLeft className="w-4 h-4" />
-                                Convert
+                                Apply
                               </>
                             )}
                           </motion.button>
@@ -713,7 +713,7 @@ const MergeSection = () => {
     <Section
       title="Merge Multiple JSON Objects"
       icon={Workflow}
-      description="Combine multiple JSON objects into a single object"
+      description="Consolidate multiple JSON assets into a governed structure"
       defaultExpanded={true}
       actions={
         <>
@@ -723,7 +723,7 @@ const MergeSection = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            Merge
+            Consolidate
           </motion.button>
           <motion.button
             onClick={handleCopy}
@@ -1002,7 +1002,7 @@ settings.theme: dark`;
     <Section
       title="Flatten Nested Structures"
       icon={Workflow}
-      description="Convert nested JSON/YAML structures to flat key-value pairs"
+      description="Flatten nested data for compatibility and downstream processing"
       actions={
         <>
           <motion.button
@@ -1387,7 +1387,7 @@ settings:
     <Section
       title="Unflatten Data"
       icon={Workflow}
-      description="Convert flat key-value pairs back to nested structures"
+      description="Restore hierarchical structure from flattened representations"
       actions={
         <>
           <motion.button
@@ -1760,7 +1760,7 @@ const RenameKeysSection = () => {
     <Section
       title="Rename Keys"
       icon={Workflow}
-      description="Rename object keys using a mapping configuration"
+      description="Apply standardized naming through controlled key mapping"
       actions={
         <>
           <motion.button
@@ -2074,7 +2074,7 @@ const TransformValuesSection = () => {
     <Section
       title="Transform Values"
       icon={Workflow}
-      description="Transform string values: uppercase, lowercase, trim, or reverse"
+      description="Enforce value-level transformations for consistency: uppercase, lowercase, trim, or reverse"
       actions={
         <>
           <motion.button
@@ -2406,7 +2406,7 @@ active: true`;
     <Section
       title="Filter / Remove Fields"
       icon={Workflow}
-      description="Remove specific fields from JSON or YAML objects"
+      description="Exclude non-compliant or sensitive field from JSON or YAML objects"
       actions={
         <>
           <motion.button
@@ -2415,7 +2415,7 @@ active: true`;
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            Filter
+            Enforce Field Policy
           </motion.button>
           <motion.button
             onClick={handleCopy}
@@ -2764,7 +2764,7 @@ isActive: true`;
     <Section
       title="Convert Types"
       icon={Workflow}
-      description="Convert data types using type mapping (string → integer, etc.) - Supports JSON and YAML"
+      description="Enforce explicit type normalization using type mapping (string → integer, etc.) - Supports JSON and YAML"
       actions={
         <>
           <motion.button
@@ -3097,7 +3097,7 @@ const ToonStatisticsSection = () => {
     <Section
       title="TOON Statistics & Token Analysis"
       icon={BarChart3}
-      description="Analyze token efficiency and size reduction when converting to TOON format"
+      description="Analyze token efficiency and size impact for optimized transport format"
       defaultExpanded={false}
       actions={
         <>
