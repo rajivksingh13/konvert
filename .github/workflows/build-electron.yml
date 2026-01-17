@@ -84,7 +84,7 @@ jobs:
     - name: Build Electron package (Windows)
       run: |
         $ErrorActionPreference = "Stop"
-        $version = "1.0.0"
+        $version = "1.0.1"
         if ($env:GITHUB_REF -like "refs/tags/v*") {
             $version = $env:GITHUB_REF -replace "refs/tags/v", ""
         }
@@ -195,7 +195,7 @@ jobs:
     
     - name: Build Electron package (macOS)
       run: |
-        VERSION="1.0.0"
+        VERSION="1.0.1"
         if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION=$(echo "$GITHUB_REF" | sed 's/refs\/tags\/v//')
         fi
@@ -265,7 +265,7 @@ jobs:
           VERSION="${{ github.ref_name }}"
           VERSION=$(echo "$VERSION" | sed 's/^v//')
         else
-          VERSION="1.0.0"
+          VERSION="1.0.1"
         fi
         echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
         echo "Version: $VERSION"
