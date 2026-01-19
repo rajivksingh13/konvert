@@ -1,0 +1,50 @@
+directories:
+  output: ../dist-electron
+  buildResources: build
+appId: com.konvertr.app
+productName: KonvertR
+files:
+  - filter:
+      - main.js
+      - preload.js
+      - loading.html
+      - error.html
+      - KonvertR-Setup.command
+      - package.json
+      - '!**/node_modules/**/*'
+      - '!**/.git/**/*'
+win:
+  target:
+    - target: zip
+      arch:
+        - x64
+  icon: build/icon.ico
+  artifactName: KonvertR-Portable-${version}.zip
+  signAndEditExecutable: false
+  verifyUpdateCodeSignature: false
+mac:
+  target:
+    - target: zip
+      arch:
+        - x64
+        - arm64
+  icon: build/icon.icns
+  artifactName: KonvertR-Portable-${version}.zip
+linux:
+  target:
+    - target: zip
+      arch:
+        - x64
+  icon: build/icon.png
+  artifactName: KonvertR-Portable-${version}.zip
+extraResources:
+  - from: ../target
+    to: backend/
+    filter:
+      - backend.dat
+      - '!konvertr-*.jar'
+      - '!konvertr-*-sources.jar'
+      - '!konvertr-*-javadoc.jar'
+      - '!konvertr-*-original.jar'
+      - '!konvertr-*-obfuscated.jar'
+electronVersion: 40.0.0
