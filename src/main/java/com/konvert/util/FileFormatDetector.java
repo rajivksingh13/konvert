@@ -33,6 +33,9 @@ public class FileFormatDetector {
         if (lower.endsWith(".properties") || lower.endsWith(".prop")) return "properties";
         if (lower.endsWith(".csv")) return "csv";
         if (lower.endsWith(".proto") || lower.endsWith(".protobuf")) return "protobuf";
+        if (lower.endsWith(".docx")) return "docx";
+        if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) return "xlsx";
+        if (lower.endsWith(".pdf")) return "pdf";
         
         return "unknown";
     }
@@ -135,6 +138,9 @@ public class FileFormatDetector {
             case "properties": return ".properties";
             case "csv": return ".csv";
             case "protobuf": return ".proto";
+            case "docx": return ".docx";
+            case "xlsx": return ".xlsx";
+            case "pdf": return ".pdf";
             default: return ".txt";
         }
     }

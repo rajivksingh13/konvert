@@ -25,6 +25,13 @@ class ApiService {
     }
   }
 
+  // Trial
+  async getTrialStatus() {
+    return this.request('/trial/status', {
+      method: 'GET'
+    });
+  }
+
   // Converter
   async convert(input, fromFormat, toFormat, protobufSchema = null) {
     return this.request('/convert', {
@@ -85,6 +92,24 @@ class ApiService {
       body: formData
     });
 
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || `HTTP error! status: ${response.status}`);
+    }
+    return data;
+  }
+
+  async maskFile(file, format = '', types = [], fieldAware = false) {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (format) formData.append('format', format);
+    if (types && types.length) formData.append('types', types.join(','));
+    formData.append('fieldAware', fieldAware ? 'true' : 'false');
+
+    const response = await fetch(`${API_BASE_URL}/mask/file`, {
+      method: 'POST',
+      body: formData
+    });
     const data = await response.json();
     if (!response.ok) {
       throw new Error(data.error || `HTTP error! status: ${response.status}`);

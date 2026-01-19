@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ChevronDown, Copy, Trash2, Check, Hash, Key, Shuffle, 
-  FileCheck, Archive, RefreshCw, Wrench, HelpCircle
+  FileCheck, Archive, RefreshCw, Wrench, HelpCircle, Shield,
+  Upload, Clipboard
 } from 'lucide-react';
 import { TextArea, Select } from './UI/Input';
 import api from '../services/api';
@@ -17,10 +18,10 @@ const Section = ({ title, icon: Icon, description, children, defaultExpanded = f
       animate={{ opacity: 1, y: 0 }}
       className="card-modern overflow-hidden mb-4"
     >
-      <div className="w-full flex items-center justify-between p-5">
+      <div className="w-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-5">
         <button
           onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-3 flex-1 hover:bg-[var(--bg-secondary)] transition-colors rounded-lg p-2 -m-2 text-left"
+          className="flex items-center gap-3 flex-1 min-w-0 hover:bg-[var(--bg-secondary)] transition-colors rounded-lg p-2 -m-2 text-left"
         >
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center shadow-lg flex-shrink-0">
             <Icon className="w-5 h-5 text-white" />
@@ -30,9 +31,9 @@ const Section = ({ title, icon: Icon, description, children, defaultExpanded = f
             {description && <p className="text-xs text-[var(--text-secondary)] mt-0.5">{description}</p>}
           </div>
         </button>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-wrap justify-end flex-shrink-0">
           {actions && (
-            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
               {actions}
             </div>
           )}
@@ -94,6 +95,12 @@ const Utilities = () => {
       title: 'ID Generation & Compression',
       icon: Key,
       description: 'Generate UUIDs and compress/decompress data'
+    },
+    {
+      id: 'masking-redaction',
+      title: 'Masking & Redaction',
+      icon: Shield,
+      description: 'Mask sensitive attributes with enterprise-grade rules'
     }
   ];
 
@@ -185,6 +192,20 @@ const Utilities = () => {
               <div className="space-y-4">
                 <UUIDSection />
                 <CompressionSection />
+              </div>
+            </motion.div>
+          )}
+
+          {activeSidebarItem === 'masking-redaction' && (
+            <motion.div
+              key="masking-redaction"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="space-y-4">
+                <MaskingSection />
               </div>
             </motion.div>
           )}
@@ -1407,4 +1428,341 @@ const CompressionSection = () => {
   );
 };
 
+const MaskingSection = () => {
+  const [file, setFile] = useState(null);
+  const [pastedContent, setPastedContent] = useState('');
+  const [format, setFormat] = useState('');
+  const [inputMode, setInputMode] = useState('upload');
+  const [selectedTypes, setSelectedTypes] = useState([
+    'email',
+    'phone',
+    'ssn',
+    'pan',
+    'aadhaar',
+    'card',
+    'account',
+    'secret',
+    'address'
+  ]);
+  const [fieldAware, setFieldAware] = useState(true);
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [dragActive, setDragActive] = useState(false);
+  const [showExample, setShowExample] = useState(false);
+
+  const maskTypes = [
+    { id: 'email', label: 'Email' },
+    { id: 'phone', label: 'Phone' },
+    { id: 'ssn', label: 'SSN' },
+    { id: 'pan', label: 'PAN' },
+    { id: 'aadhaar', label: 'Aadhaar' },
+    { id: 'card', label: 'Card' },
+    { id: 'account', label: 'Account' },
+    { id: 'secret', label: 'Secrets' },
+    { id: 'address', label: 'Address' }
+  ];
+
+  const toggleType = (typeId) => {
+    setSelectedTypes((prev) => (
+      prev.includes(typeId) ? prev.filter((type) => type !== typeId) : [...prev, typeId]
+    ));
+  };
+
+  const handleMask = async () => {
+    const hasFile = !!file;
+    const hasText = pastedContent.trim().length > 0;
+    if (inputMode === 'upload' && !hasFile) {
+      setError('Please upload a file to mask.');
+      return;
+    }
+    if (inputMode === 'paste' && !hasText) {
+      setError('Please paste data to mask.');
+      return;
+    }
+    setError('');
+    setLoading(true);
+    try {
+      let uploadFile = file;
+      if (!uploadFile && hasText) {
+        const ext = format ? `.${format}` : '.txt';
+        const blob = new Blob([pastedContent], { type: 'text/plain' });
+        uploadFile = new File([blob], `pasted${ext}`, { type: 'text/plain' });
+      }
+      const response = await api.maskFile(uploadFile, format, selectedTypes, fieldAware);
+      setResult(response);
+    } catch (err) {
+      setError(err.message || 'Masking failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClear = () => {
+    setFile(null);
+    setPastedContent('');
+    setResult(null);
+    setError('');
+  };
+
+  const handleDownload = () => {
+    if (!result?.base64Content || !result?.outputFilename) return;
+    const byteCharacters = atob(result.base64Content);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = result.outputFilename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <Section
+      title="Sensitive Data Masking"
+      icon={Shield}
+      description="Enterprise-grade masking for structured and unstructured data"
+      actions={
+        <>
+          <motion.button
+            onClick={handleMask}
+            disabled={loading || (inputMode === 'upload' && !file) || (inputMode === 'paste' && !pastedContent.trim())}
+            className="btn-primary-modern px-4 disabled:opacity-50 disabled:cursor-not-allowed"
+            whileHover={{ scale: loading || (inputMode === 'upload' && !file) || (inputMode === 'paste' && !pastedContent.trim()) ? 1 : 1.02 }}
+            whileTap={{ scale: loading || (inputMode === 'upload' && !file) || (inputMode === 'paste' && !pastedContent.trim()) ? 1 : 0.98 }}
+          >
+            {loading ? (
+              <>
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  className="inline-block mr-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </motion.div>
+                Masking...
+              </>
+            ) : (
+              'Mask'
+            )}
+          </motion.button>
+          <motion.button
+            onClick={handleClear}
+            className="btn-secondary-modern px-4"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            Clear
+          </motion.button>
+        </>
+      }
+    >
+      <UtilityItem title="Mask Sensetive Field Data Value" icon={Shield}>
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setInputMode('upload')}
+                className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors flex items-center gap-2 ${
+                  inputMode === 'upload'
+                    ? 'border-primary-500 text-primary-600 bg-primary-50 dark:bg-primary-900/20'
+                    : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'
+                }`}
+              >
+                <Upload className="w-4 h-4" />
+                Upload Files
+              </button>
+              <button
+                type="button"
+                onClick={() => setInputMode('paste')}
+                className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors flex items-center gap-2 ${
+                  inputMode === 'paste'
+                    ? 'border-primary-500 text-primary-600 bg-primary-50 dark:bg-primary-900/20'
+                    : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'
+                }`}
+              >
+                <Clipboard className="w-4 h-4" />
+                Paste
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowExample(!showExample)}
+              className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            >
+              <HelpCircle className="w-4 h-4" />
+              {showExample ? 'Hide' : 'Show'} Example
+            </button>
+          </div>
+
+          <AnimatePresence>
+            {showExample && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="space-y-2 text-xs text-[var(--text-secondary)]">
+                    <strong className="text-[var(--text-primary)] block">Example (JSON)</strong>
+                    <p className="text-[var(--text-muted)]">Input:</p>
+                    <code className="block p-2 bg-[var(--bg-primary)] rounded text-xs overflow-x-auto whitespace-pre">
+{`{
+  "email": "rajiv.kumar@company.com",
+  "phone": "+91 98765 43210",
+  "pan": "ABCDE1234F",
+  "aadhaar": "1234 5678 9012",
+  "accountNumber": "021201558009",
+  "secret": "my-api-token"
+}`}
+                    </code>
+                    <p className="text-[var(--text-muted)] mt-2">Output:</p>
+                    <code className="block p-2 bg-[var(--bg-primary)] rounded text-xs overflow-x-auto whitespace-pre">
+{`{
+  "email": "rXXXXr@company.com",
+  "phone": "XXXXXXXX3210",
+  "pan": "XXXXX1234F",
+  "aadhaar": "XXXXXXXX9012",
+  "accountNumber": "XXXXXXXX8009",
+  "secret": "XXXX"
+}`}
+                    </code>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+            {inputMode === 'upload' && (
+              <div className="md:col-span-2">
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragActive(true);
+                }}
+                onDragLeave={() => setDragActive(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragActive(false);
+                  const dropped = e.dataTransfer.files?.[0];
+                  if (dropped) {
+                    setFile(dropped);
+                  }
+                }}
+                className={`border-2 border-dashed rounded-xl p-4 transition-colors ${
+                  dragActive ? 'border-primary-400 bg-primary-50/50 dark:bg-primary-900/20' : 'border-[var(--border-color)]'
+                }`}
+              >
+                <input
+                  type="file"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  className="input-modern w-full"
+                  accept=".json,.yaml,.yml,.csv,.docx,.xlsx,.xls,.pdf"
+                />
+                <p className="text-xs text-[var(--text-muted)] mt-2">
+                  Drag & drop a file here, or click to select
+                </p>
+              </div>
+              <p className="text-xs text-[var(--text-muted)] mt-1">
+                Supported: JSON, YAML, CSV, DOCX, XLSX, PDF
+              </p>
+              </div>
+            )}
+            <div className={`${inputMode === 'upload' ? 'w-[190px]' : 'w-full'}`}>
+              <Select
+                value={format}
+                onChange={(e) => setFormat(e.target.value)}
+                options={[
+                  { value: '', label: 'Auto-detect' },
+                  { value: 'json', label: 'JSON' },
+                  { value: 'yaml', label: 'YAML' },
+                  { value: 'yml', label: 'YML' },
+                  { value: 'csv', label: 'CSV' },
+                  { value: 'docx', label: 'DOCX' },
+                  { value: 'xlsx', label: 'XLSX' },
+                  { value: 'pdf', label: 'PDF' }
+                ]}
+                className={`h-11 text-sm ${inputMode === 'upload' ? 'w-[190px]' : 'w-full'}`}
+              />
+            </div>
+          </div>
+
+          {inputMode === 'paste' && (
+            <TextArea
+              value={pastedContent}
+              onChange={(e) => setPastedContent(e.target.value)}
+              placeholder="Paste data here (JSON/YAML/CSV/text) to mask without uploading a file..."
+              className="min-h-[140px]"
+            />
+          )}
+
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {maskTypes.map((type) => (
+              <label key={type.id} className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+                <input
+                  type="checkbox"
+                  checked={selectedTypes.includes(type.id)}
+                  onChange={() => toggleType(type.id)}
+                />
+                {type.label}
+              </label>
+            ))}
+          </div>
+
+          <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+            <input
+              type="checkbox"
+              checked={fieldAware}
+              onChange={(e) => setFieldAware(e.target.checked)}
+            />
+            Field-aware masking for JSON/YAML (use key names to apply rules)
+          </label>
+
+          {error && (
+            <p className="text-xs text-error-500">{error}</p>
+          )}
+
+          {result && (
+            <div className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] space-y-2">
+              <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--text-secondary)]">
+                <span>Format: {result.detectedFormat || 'unknown'}</span>
+                <span>Masked: {result.maskedCount ?? 0}</span>
+              </div>
+              {result.warning && (
+                <p className="text-xs text-[var(--text-secondary)]">{result.warning}</p>
+              )}
+              <div className="flex items-center gap-2">
+                <motion.button
+                  onClick={handleDownload}
+                  className="btn-primary-modern px-4"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Download Masked File
+                </motion.button>
+              </div>
+              {result.content && (
+                <TextArea
+                  value={result.content}
+                  readOnly
+                  className="min-h-[160px]"
+                />
+              )}
+            </div>
+          )}
+        </div>
+      </UtilityItem>
+    </Section>
+  );
+};
+
 export default Utilities;
+
