@@ -11,7 +11,7 @@ function httpGet(url) {
       const urlObj = new URL(url);
       const options = {
         hostname: urlObj.hostname,
-        port: urlObj.port || 8080,
+        port: urlObj.port || 8989,
         path: urlObj.pathname + urlObj.search,
         method: 'GET',
         timeout: 2000
@@ -53,7 +53,7 @@ function httpGet(url) {
 
 let mainWindow;
 let backendProcess;
-const BACKEND_PORT = 8080;
+const BACKEND_PORT = 8989;
 const BACKEND_URL = `http://localhost:${BACKEND_PORT}`;
 
 // Find Java executable
@@ -166,7 +166,7 @@ function startBackend() {
 // Wait for backend to be ready
 function waitForBackend(callback, retries = 60) {
   if (retries <= 0) {
-    showError('Backend failed to start. Please check if port 8080 is available.');
+    showError('Backend failed to start. Please check if port 8989 is available.');
     return;
   }
   

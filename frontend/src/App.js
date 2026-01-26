@@ -7,9 +7,11 @@ import Base64 from './components/Base64';
 import Files from './components/Files';
 import Utilities from './components/Utilities';
 import './App.css';
+import api from './services/api';
 
 function App() {
   const [activeTab, setActiveTab] = useState('converter');
+  const [trialStatus, setTrialStatus] = useState(null);
 
   const tabs = [
     { id: 'converter', label: 'Normalize & Transform', icon: '🔄' },
@@ -31,6 +33,18 @@ function App() {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [activeTab]);
+
+  useEffect(() => {
+    let isMounted = true;
+    api.getTrialStatus()
+      .then((status) => {
+        if (isMounted) setTrialStatus(status);
+      })
+      .catch(() => {
+        if (isMounted) setTrialStatus(null);
+      });
+    return () => { isMounted = false; };
+  }, []);
 
   const renderActivePanel = () => {
     switch (activeTab) {
@@ -60,6 +74,33 @@ function App() {
         <main className="main-content">
           {renderActivePanel()}
         </main>
+        {trialStatus && !trialStatus.valid && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+            <div className="card-modern max-w-lg w-full p-6 text-center space-y-3">
+              <h2 className="text-xl font-semibold text-[var(--text-primary)]">Trial expired</h2>
+              <p className="text-sm text-[var(--text-secondary)]">{trialStatus.message}</p>
+              {trialStatus.extensionUrl ? (
+                <button
+                  className="btn-primary-modern px-5"
+                  onClick={() => window.open(trialStatus.extensionUrl, '_blank', 'noopener,noreferrer')}
+                >
+                  Extend Trial
+                </button>
+              ) : trialStatus.supportEmail ? (
+                <a
+                  className="btn-primary-modern px-5 inline-flex justify-center"
+                  href={`mailto:${trialStatus.supportEmail}?subject=KonvertR%20Trial%20Extension`}
+                >
+                  Request Extension
+                </a>
+              ) : (
+                <p className="text-xs text-[var(--text-muted)]">
+                  Contact support to extend your trial period.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </ThemeProvider>
   );

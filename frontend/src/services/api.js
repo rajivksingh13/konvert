@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8989/api';
 
 class ApiService {
   async request(endpoint, options = {}) {
@@ -23,6 +23,13 @@ class ApiService {
     } catch (error) {
       throw error;
     }
+  }
+
+  // Trial
+  async getTrialStatus() {
+    return this.request('/trial/status', {
+      method: 'GET'
+    });
   }
 
   // Converter
@@ -85,6 +92,24 @@ class ApiService {
       body: formData
     });
 
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || `HTTP error! status: ${response.status}`);
+    }
+    return data;
+  }
+
+  async maskFile(file, format = '', types = [], fieldAware = false) {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (format) formData.append('format', format);
+    if (types && types.length) formData.append('types', types.join(','));
+    formData.append('fieldAware', fieldAware ? 'true' : 'false');
+
+    const response = await fetch(`${API_BASE_URL}/mask/file`, {
+      method: 'POST',
+      body: formData
+    });
     const data = await response.json();
     if (!response.ok) {
       throw new Error(data.error || `HTTP error! status: ${response.status}`);

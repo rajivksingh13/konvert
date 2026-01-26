@@ -22,8 +22,10 @@ public class KonvertApplication {
         String electronMode = System.getProperty("electron.mode");
         if (electronMode != null && electronMode.equals("true")) {
             System.out.println("\n✅ KonvertR backend is running!");
-            System.out.println("📡 Server: http://localhost:8080");
+            System.out.println("📡 Server: http://localhost:8989");
             System.out.println("🔒 Running in Electron mode\n");
+            System.out.println("© 2026 KonvertR All rights reserved");
+            System.out.println("Created and Developed by Rajiv_Kumar_f8dd89\n");
             return;
         }
         
@@ -31,16 +33,20 @@ public class KonvertApplication {
         try {
             Desktop desktop = Desktop.getDesktop();
             if (desktop.isSupported(Desktop.Action.BROWSE)) {
-                desktop.browse(new URI("http://localhost:8080"));
+                desktop.browse(new URI("http://localhost:8989"));
                 System.out.println("\n✅ KonvertR is running!");
                 System.out.println("🌐 Browser opened automatically.");
-                System.out.println("📡 Server: http://localhost:8080");
+                System.out.println("📡 Server: http://localhost:8989");
                 System.out.println("🔒 Running locally - No internet required!\n");
+                System.out.println("© 2026 KonvertR All rights reserved");
+                System.out.println("Created and Developed by Rajiv_Kumar_f8dd89\n");
             }
         } catch (Exception e) {
             System.out.println("\n✅ KonvertR is running!");
-            System.out.println("🌐 Please open http://localhost:8080 in your browser");
+            System.out.println("🌐 Please open http://localhost:8989 in your browser");
             System.out.println("🔒 Running locally - No internet required!\n");
+            System.out.println("© 2026 KonvertR All rights reserved");
+            System.out.println("Created and Developed by Rajiv_Kumar_f8dd89\n");
         }
     }
 }
