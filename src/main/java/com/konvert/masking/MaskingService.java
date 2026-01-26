@@ -2,6 +2,8 @@ package com.konvert.masking;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.DataFormatter;
+import org.apache.poi.ss.usermodel.FormulaEvaluator;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -20,7 +22,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class MaskingService {
@@ -213,21 +217,67 @@ public class MaskingService {
     private MaskingResult maskExcel(MultipartFile file, String outputFilename, EnumSet<MaskingType> types) throws Exception {
         MaskingAccumulator accumulator = new MaskingAccumulator();
         try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
+            DataFormatter formatter = new DataFormatter();
+            FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
             for (Sheet sheet : workbook) {
+                Map<Integer, MaskingType> headerTypes = new HashMap<>();
+                int headerRowIndex = -1;
                 for (Row row : sheet) {
-                    for (Cell cell : row) {
-                        if (cell.getCellType() == CellType.STRING) {
-                            String value = cell.getStringCellValue();
-                            MaskingOutcome outcome = masker.maskText(value, types);
-                            cell.setCellValue(outcome.getText());
-                            accumulator.add(outcome);
-                        } else if (cell.getCellType() == CellType.NUMERIC) {
-                            String value = String.valueOf((long) cell.getNumericCellValue());
-                            if (value.length() >= 8) {
-                                MaskingOutcome outcome = masker.maskText(value, types);
-                                cell.setCellValue(outcome.getText());
-                                accumulator.add(outcome);
+                    if (headerRowIndex == -1) {
+                        boolean foundAny = false;
+                        for (Cell cell : row) {
+                            String header = formatter.formatCellValue(cell, evaluator);
+                            if (header != null && !header.isBlank()) {
+                                foundAny = true;
                             }
+                            MaskingType type = masker.detectTypeFromKey(header);
+                            if (type != null) {
+                                headerTypes.put(cell.getColumnIndex(), type);
+                            }
+                        }
+                        if (foundAny) {
+                            headerRowIndex = row.getRowNum();
+                            continue;
+                        }
+                        if (!foundAny) {
+                            continue;
+                        }
+                    }
+                    for (Cell cell : row) {
+                        if (cell.getCellType() == CellType.BLANK) {
+                            continue;
+                        }
+                        String value = formatter.formatCellValue(cell, evaluator);
+                        if (value == null || value.isBlank()) {
+                            continue;
+                        }
+
+                        MaskingType headerType = headerTypes.get(cell.getColumnIndex());
+                        MaskingOutcome outcome;
+                        if (headerType != null) {
+                            String masked = masker.maskValue(value, headerType);
+                            outcome = new MaskingOutcome(masked, java.util.Map.of(headerType.name().toLowerCase(), 1), 1);
+                        } else {
+                            outcome = masker.maskText(value, types);
+                        }
+                        String maskedValue = outcome.getText();
+                        boolean changed = !maskedValue.equals(value);
+
+                        if (!changed && isNumericCell(cell)) {
+                            String rawNumeric = toPlainNumericString(cell.getNumericCellValue());
+                            if (rawNumeric != null && !rawNumeric.isBlank() && !rawNumeric.equals(value)) {
+                                MaskingOutcome numericOutcome = masker.maskText(rawNumeric, types);
+                                if (numericOutcome.getTotal() > 0 && !numericOutcome.getText().equals(rawNumeric)) {
+                                    outcome = numericOutcome;
+                                    maskedValue = numericOutcome.getText();
+                                    changed = true;
+                                }
+                            }
+                        }
+
+                        if (changed) {
+                            cell.setCellValue(maskedValue);
+                            accumulator.add(outcome);
                         }
                     }
                 }
@@ -237,6 +287,26 @@ public class MaskingService {
             workbook.write(out);
             return new MaskingResult(out.toByteArray(), null, outputFilename, "xlsx", accumulator.total(), accumulator.counts(), null);
         }
+    }
+
+    private boolean isNumericCell(Cell cell) {
+        CellType cellType = cell.getCellType();
+        if (cellType == CellType.NUMERIC) {
+            return true;
+        }
+        if (cellType == CellType.FORMULA) {
+            return cell.getCachedFormulaResultType() == CellType.NUMERIC;
+        }
+        return false;
+    }
+
+    private String toPlainNumericString(double value) {
+        java.math.BigDecimal decimal = java.math.BigDecimal.valueOf(value);
+        String raw = decimal.stripTrailingZeros().toPlainString();
+        if (raw.endsWith(".0")) {
+            return raw.substring(0, raw.length() - 2);
+        }
+        return raw;
     }
 
     private MaskingResult maskStructured(MultipartFile file, String outputFilename, EnumSet<MaskingType> types, boolean fieldAware, boolean isJson) throws Exception {
