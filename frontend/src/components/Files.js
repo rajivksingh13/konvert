@@ -125,8 +125,9 @@ const Files = () => {
         animate={{ opacity: 1, x: 0 }}
         className="w-full lg:w-72 xl:w-80 flex-shrink-0"
       >
-        <div className="card-modern p-3 space-y-2 sticky top-20">
-          {sidebarItems.map((item) => {
+        <div className="card-modern p-3 sticky top-20 flex flex-col h-[calc(100vh-6rem)]">
+          <div className="space-y-2">
+            {sidebarItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeSidebarItem === item.id;
             
@@ -172,7 +173,12 @@ const Files = () => {
                 )}
               </motion.button>
             );
-          })}
+            })}
+          </div>
+          <div className="mt-auto pt-3 border-t border-[var(--border-color)] text-[11px] text-[var(--text-muted)] leading-relaxed">
+            <p>© 2026 KonvertR All rights reserved</p>
+            <p className="mt-2">Created and Developed by Rajiv_Kumar_f8dd89</p>
+          </div>
         </div>
       </motion.aside>
 
