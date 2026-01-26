@@ -1433,14 +1433,36 @@ const MaskingSection = () => {
   const [pastedContent, setPastedContent] = useState('');
   const [format, setFormat] = useState('');
   const [inputMode, setInputMode] = useState('upload');
+  const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedTypes, setSelectedTypes] = useState([
     'email',
     'phone',
     'ssn',
     'pan',
     'aadhaar',
+    'gstin',
+    'vat',
     'card',
     'account',
+    'case_number',
+    'legal_id',
+    'license_id',
+    'secret',
+    'address'
+  ]);
+  const [manualTypes, setManualTypes] = useState([
+    'email',
+    'phone',
+    'ssn',
+    'pan',
+    'aadhaar',
+    'gstin',
+    'vat',
+    'card',
+    'account',
+    'case_number',
+    'legal_id',
+    'license_id',
     'secret',
     'address'
   ]);
@@ -1451,22 +1473,89 @@ const MaskingSection = () => {
   const [dragActive, setDragActive] = useState(false);
   const [showExample, setShowExample] = useState(false);
 
+  const categoryGroups = [
+    {
+      id: 'legal_contracts',
+      label: 'Legal & Contracts',
+      types: ['legal_id', 'case_number', 'address', 'email', 'phone']
+    },
+    {
+      id: 'tax_payroll',
+      label: 'Tax & Payroll',
+      types: ['gstin', 'vat', 'ein', 'tin', 'ssn', 'pan', 'aadhaar', 'account']
+    },
+    {
+      id: 'financial',
+      label: 'Financial (Non-Tax)',
+      types: ['account', 'card', 'invoice_id']
+    },
+    {
+      id: 'regulatory',
+      label: 'Regulatory & Government',
+      types: ['license_id', 'legal_id', 'case_number', 'address', 'ssn', 'pan', 'aadhaar']
+    },
+    {
+      id: 'identity',
+      label: 'Identity & PII',
+      types: ['email', 'phone', 'address', 'ssn', 'pan', 'aadhaar']
+    },
+    {
+      id: 'secrets',
+      label: 'Secrets & Credentials',
+      types: ['secret']
+    }
+  ];
+
   const maskTypes = [
     { id: 'email', label: 'Email' },
     { id: 'phone', label: 'Phone' },
     { id: 'ssn', label: 'SSN' },
     { id: 'pan', label: 'PAN' },
     { id: 'aadhaar', label: 'Aadhaar' },
+    { id: 'gstin', label: 'GSTIN' },
+    { id: 'vat', label: 'VAT' },
+    { id: 'ein', label: 'EIN' },
+    { id: 'tin', label: 'TIN' },
     { id: 'card', label: 'Card' },
     { id: 'account', label: 'Account' },
+    { id: 'invoice_id', label: 'Invoice ID' },
+    { id: 'case_number', label: 'Case Number' },
+    { id: 'legal_id', label: 'Legal/Registration ID' },
+    { id: 'license_id', label: 'License ID' },
     { id: 'secret', label: 'Secrets' },
     { id: 'address', label: 'Address' }
   ];
 
+  const buildSelectedTypes = (categories, manual) => {
+    const categoryTypes = new Set();
+    categories.forEach((categoryId) => {
+      const group = categoryGroups.find((item) => item.id === categoryId);
+      if (group) {
+        group.types.forEach((type) => categoryTypes.add(type));
+      }
+    });
+    manual.forEach((type) => categoryTypes.add(type));
+    return Array.from(categoryTypes);
+  };
+
+  const toggleCategory = (categoryId) => {
+    setSelectedCategories((prev) => {
+      const next = prev.includes(categoryId)
+        ? prev.filter((item) => item !== categoryId)
+        : [...prev, categoryId];
+      setSelectedTypes(buildSelectedTypes(next, manualTypes));
+      return next;
+    });
+  };
+
   const toggleType = (typeId) => {
-    setSelectedTypes((prev) => (
-      prev.includes(typeId) ? prev.filter((type) => type !== typeId) : [...prev, typeId]
-    ));
+    setManualTypes((prev) => {
+      const next = prev.includes(typeId)
+        ? prev.filter((type) => type !== typeId)
+        : [...prev, typeId];
+      setSelectedTypes(buildSelectedTypes(selectedCategories, next));
+      return next;
+    });
   };
 
   const handleMask = async () => {
@@ -1527,6 +1616,7 @@ const MaskingSection = () => {
       title="Sensitive Data Masking"
       icon={Shield}
       description="Enterprise-grade masking for structured and unstructured data"
+      defaultExpanded
       actions={
         <>
           <motion.button
@@ -1564,6 +1654,12 @@ const MaskingSection = () => {
     >
       <UtilityItem title="Mask Sensetive Field Data Value" icon={Shield}>
         <div className="space-y-3">
+          {error && (
+            <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-3 py-2">
+              <p className="text-xs font-semibold text-red-700 dark:text-red-200">Notice</p>
+              <p className="text-xs text-red-600 dark:text-red-300">{error}</p>
+            </div>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -1610,10 +1706,11 @@ const MaskingSection = () => {
                 className="overflow-hidden"
               >
                 <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <div className="space-y-2 text-xs text-[var(--text-secondary)]">
-                    <strong className="text-[var(--text-primary)] block">Example (JSON)</strong>
-                    <p className="text-[var(--text-muted)]">Input:</p>
-                    <code className="block p-2 bg-[var(--bg-primary)] rounded text-xs overflow-x-auto whitespace-pre">
+                  <div className="space-y-4 text-xs text-[var(--text-secondary)]">
+                    <div className="space-y-2">
+                      <strong className="text-[var(--text-primary)] block">Example (JSON - field-aware)</strong>
+                      <p className="text-[var(--text-muted)]">Input:</p>
+                      <code className="block p-2 bg-[var(--bg-primary)] rounded text-xs overflow-x-auto whitespace-pre">
 {`{
   "email": "rajiv.kumar@company.com",
   "phone": "+91 98765 43210",
@@ -1622,9 +1719,9 @@ const MaskingSection = () => {
   "accountNumber": "021201558009",
   "secret": "my-api-token"
 }`}
-                    </code>
-                    <p className="text-[var(--text-muted)] mt-2">Output:</p>
-                    <code className="block p-2 bg-[var(--bg-primary)] rounded text-xs overflow-x-auto whitespace-pre">
+                      </code>
+                      <p className="text-[var(--text-muted)] mt-2">Output:</p>
+                      <code className="block p-2 bg-[var(--bg-primary)] rounded text-xs overflow-x-auto whitespace-pre">
 {`{
   "email": "rXXXXr@company.com",
   "phone": "XXXXXXXX3210",
@@ -1633,7 +1730,70 @@ const MaskingSection = () => {
   "accountNumber": "XXXXXXXX8009",
   "secret": "XXXX"
 }`}
-                    </code>
+                      </code>
+                    </div>
+
+                    <div className="space-y-2">
+                      <strong className="text-[var(--text-primary)] block">Example (YAML)</strong>
+                      <p className="text-[var(--text-muted)]">Input:</p>
+                      <code className="block p-2 bg-[var(--bg-primary)] rounded text-xs overflow-x-auto whitespace-pre">
+{`email: rajiv.kumar@company.com
+gstin: 27ABCDE1234F1Z5
+invoiceId: INV-2024-0001
+caseNumber: 2024/ABC/123`}
+                      </code>
+                      <p className="text-[var(--text-muted)] mt-2">Output:</p>
+                      <code className="block p-2 bg-[var(--bg-primary)] rounded text-xs overflow-x-auto whitespace-pre">
+{`email: rXXXXr@company.com
+gstin: XXXXXXXXXXXXXXX
+invoiceId: XXXX-2024-0001
+caseNumber: XXXX/ABC/123`}
+                      </code>
+                    </div>
+
+                    <div className="space-y-2">
+                      <strong className="text-[var(--text-primary)] block">Example (CSV)</strong>
+                      <p className="text-[var(--text-muted)]">Input:</p>
+                      <code className="block p-2 bg-[var(--bg-primary)] rounded text-xs overflow-x-auto whitespace-pre">
+{`email,phone,pan,card
+rajiv.kumar@company.com,+1 415 555 2671,ABCDE1234F,4111 1111 1111 1111`}
+                      </code>
+                      <p className="text-[var(--text-muted)] mt-2">Output:</p>
+                      <code className="block p-2 bg-[var(--bg-primary)] rounded text-xs overflow-x-auto whitespace-pre">
+{`email,phone,pan,card
+rXXXXr@company.com,XXXXXXXX2671,XXXXX1234F,XXXXXXXX1111`}
+                      </code>
+                    </div>
+
+                    <div className="space-y-2">
+                      <strong className="text-[var(--text-primary)] block">Example (DOCX)</strong>
+                      <p className="text-[var(--text-muted)]">Input:</p>
+                      <code className="block p-2 bg-[var(--bg-primary)] rounded text-xs overflow-x-auto whitespace-pre">
+{`Invoice # INV-2024-0001
+Account: 021201558009
+Email: rajiv.kumar@company.com`}
+                      </code>
+                      <p className="text-[var(--text-muted)] mt-2">Output:</p>
+                      <code className="block p-2 bg-[var(--bg-primary)] rounded text-xs overflow-x-auto whitespace-pre">
+{`Invoice # XXXX-2024-0001
+Account: XXXXXXXX8009
+Email: rXXXXr@company.com`}
+                      </code>
+                    </div>
+
+                    <div className="space-y-2">
+                      <strong className="text-[var(--text-primary)] block">Example (XLSX)</strong>
+                      <p className="text-[var(--text-muted)]">Input:</p>
+                      <code className="block p-2 bg-[var(--bg-primary)] rounded text-xs overflow-x-auto whitespace-pre">
+{`Email | PAN | GSTIN | License
+rajiv.kumar@company.com | ABCDE1234F | 27ABCDE1234F1Z5 | LIC-445566`}
+                      </code>
+                      <p className="text-[var(--text-muted)] mt-2">Output:</p>
+                      <code className="block p-2 bg-[var(--bg-primary)] rounded text-xs overflow-x-auto whitespace-pre">
+{`Email | PAN | GSTIN | License
+rXXXXr@company.com | XXXXX1234F | XXXXXXXXXXXXXXX | XXXX-445566`}
+                      </code>
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -1665,14 +1825,14 @@ const MaskingSection = () => {
                   type="file"
                   onChange={(e) => setFile(e.target.files?.[0] || null)}
                   className="input-modern w-full"
-                  accept=".json,.yaml,.yml,.csv,.docx,.xlsx,.xls,.pdf"
+                  accept=".json,.yaml,.yml,.csv,.docx,.xlsx,.xls"
                 />
                 <p className="text-xs text-[var(--text-muted)] mt-2">
                   Drag & drop a file here, or click to select
                 </p>
               </div>
               <p className="text-xs text-[var(--text-muted)] mt-1">
-                Supported: JSON, YAML, CSV, DOCX, XLSX, PDF
+                Supported: JSON, YAML, CSV, DOCX, XLSX
               </p>
               </div>
             )}
@@ -1687,8 +1847,7 @@ const MaskingSection = () => {
                   { value: 'yml', label: 'YML' },
                   { value: 'csv', label: 'CSV' },
                   { value: 'docx', label: 'DOCX' },
-                  { value: 'xlsx', label: 'XLSX' },
-                  { value: 'pdf', label: 'PDF' }
+                  { value: 'xlsx', label: 'XLSX' }
                 ]}
                 className={`h-11 text-sm ${inputMode === 'upload' ? 'w-[190px]' : 'w-full'}`}
               />
@@ -1703,6 +1862,31 @@ const MaskingSection = () => {
               className="min-h-[140px]"
             />
           )}
+
+          <div className="space-y-2">
+            <p className="text-xs text-[var(--text-muted)]">
+              Document type categories (auto-selects related mask types)
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {categoryGroups.map((group) => (
+                <button
+                  key={group.id}
+                  type="button"
+                  onClick={() => toggleCategory(group.id)}
+                  className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                    selectedCategories.includes(group.id)
+                      ? 'border-primary-500 text-primary-600 bg-primary-50 dark:bg-primary-900/20'
+                      : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'
+                  }`}
+                >
+                  {group.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-[var(--text-muted)]">
+              You can still fine-tune specific mask types below.
+            </p>
+          </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
             {maskTypes.map((type) => (
@@ -1725,10 +1909,6 @@ const MaskingSection = () => {
             />
             Field-aware masking for JSON/YAML (use key names to apply rules)
           </label>
-
-          {error && (
-            <p className="text-xs text-error-500">{error}</p>
-          )}
 
           {result && (
             <div className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] space-y-2">

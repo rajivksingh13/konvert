@@ -10,10 +10,18 @@ public enum MaskingType {
     SSN,
     PAN,
     AADHAAR,
+    GSTIN,
+    VAT,
+    EIN,
+    TIN,
     CARD,
     ACCOUNT,
     SECRET,
-    ADDRESS;
+    ADDRESS,
+    LEGAL_ID,
+    CASE_NUMBER,
+    INVOICE_ID,
+    LICENSE_ID;
 
     public static Optional<MaskingType> fromString(String value) {
         if (value == null || value.isBlank()) {

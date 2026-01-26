@@ -1,11 +1,5 @@
 package com.konvert.masking;
 
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDPage;
-import org.apache.pdfbox.pdmodel.PDPageContentStream;
-import org.apache.pdfbox.pdmodel.common.PDRectangle;
-import org.apache.pdfbox.pdmodel.font.PDType1Font;
-import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
@@ -23,7 +17,6 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.EnumSet;
@@ -70,8 +63,6 @@ public class MaskingService {
             case "xlsx":
             case "xls":
                 return maskExcel(file, outputFilename, types);
-            case "pdf":
-                return maskPdf(file, outputFilename, types);
             case "json":
                 return maskStructured(file, outputFilename, types, fieldAware, true);
             case "yaml":
@@ -93,13 +84,13 @@ public class MaskingService {
         MaskingAccumulator accumulator = new MaskingAccumulator();
         try (XWPFDocument document = new XWPFDocument(file.getInputStream())) {
             for (XWPFParagraph paragraph : document.getParagraphs()) {
-                maskRuns(paragraph.getRuns(), accumulator, types);
+                maskParagraph(paragraph, accumulator, types);
             }
             for (XWPFTable table : document.getTables()) {
                 for (XWPFTableRow row : table.getRows()) {
                     for (XWPFTableCell cell : row.getTableCells()) {
                         for (XWPFParagraph paragraph : cell.getParagraphs()) {
-                            maskRuns(paragraph.getRuns(), accumulator, types);
+                            maskParagraph(paragraph, accumulator, types);
                         }
                     }
                 }
@@ -111,18 +102,112 @@ public class MaskingService {
         }
     }
 
-    private void maskRuns(List<XWPFRun> runs, MaskingAccumulator accumulator, EnumSet<MaskingType> types) {
-        if (runs == null) {
+    private void maskParagraph(XWPFParagraph paragraph, MaskingAccumulator accumulator, EnumSet<MaskingType> types) {
+        if (paragraph == null) {
             return;
         }
+        List<XWPFRun> runs = paragraph.getRuns();
+        if (runs == null || runs.isEmpty()) {
+            return;
+        }
+        String text = collectRunText(runs);
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+        MaskingOutcome outcome = masker.maskText(text, types);
+        accumulator.add(outcome);
+        distributeMaskedText(runs, text.length(), outcome.getText());
+    }
+
+    private void clearRunText(XWPFRun run) {
+        if (run == null) {
+            return;
+        }
+        int textCount = run.getCTR() != null ? run.getCTR().sizeOfTArray() : 0;
+        if (textCount == 0) {
+            run.setText("", 0);
+            return;
+        }
+        for (int i = textCount - 1; i >= 0; i--) {
+            run.setText("", i);
+        }
+    }
+
+    private String collectRunText(List<XWPFRun> runs) {
+        StringBuilder full = new StringBuilder();
         for (XWPFRun run : runs) {
-            String text = run.getText(0);
-            if (text != null && !text.isEmpty()) {
-                MaskingOutcome outcome = masker.maskText(text, types);
-                run.setText(outcome.getText(), 0);
-                accumulator.add(outcome);
+            if (run == null || run.getCTR() == null) {
+                continue;
+            }
+            int count = run.getCTR().sizeOfTArray();
+            if (count == 0) {
+                String first = run.getText(0);
+                if (first != null) {
+                    full.append(first);
+                }
+                continue;
+            }
+            for (int i = 0; i < count; i++) {
+                String part = run.getText(i);
+                if (part != null) {
+                    full.append(part);
+                }
             }
         }
+        return full.toString();
+    }
+
+    private void distributeMaskedText(List<XWPFRun> runs, int originalLength, String maskedText) {
+        if (runs == null || runs.isEmpty()) {
+            return;
+        }
+        int index = 0;
+        for (int i = 0; i < runs.size(); i++) {
+            XWPFRun run = runs.get(i);
+            int runLen = getRunTextLength(run);
+            if (runLen == 0) {
+                continue;
+            }
+            int remaining = maskedText.length() - index;
+            int take = Math.min(runLen, Math.max(0, remaining));
+            String chunk = take > 0 ? maskedText.substring(index, index + take) : "";
+            clearRunText(run);
+            run.setText(chunk, 0);
+            index += take;
+        }
+        if (index < maskedText.length()) {
+            XWPFRun last = runs.get(runs.size() - 1);
+            String existing = last.getText(0);
+            String tail = maskedText.substring(index);
+            clearRunText(last);
+            last.setText((existing == null ? "" : existing) + tail, 0);
+        } else if (maskedText.length() < originalLength) {
+            for (XWPFRun run : runs) {
+                if (run != null) {
+                    clearRunText(run);
+                }
+            }
+            runs.get(0).setText(maskedText, 0);
+        }
+    }
+
+    private int getRunTextLength(XWPFRun run) {
+        if (run == null || run.getCTR() == null) {
+            return 0;
+        }
+        int count = run.getCTR().sizeOfTArray();
+        if (count == 0) {
+            String text = run.getText(0);
+            return text == null ? 0 : text.length();
+        }
+        int len = 0;
+        for (int i = 0; i < count; i++) {
+            String part = run.getText(i);
+            if (part != null) {
+                len += part.length();
+            }
+        }
+        return len;
     }
 
     private MaskingResult maskExcel(MultipartFile file, String outputFilename, EnumSet<MaskingType> types) throws Exception {
@@ -154,34 +239,6 @@ public class MaskingService {
         }
     }
 
-    private MaskingResult maskPdf(MultipartFile file, String outputFilename, EnumSet<MaskingType> types) throws Exception {
-        try (PDDocument document = PDDocument.load(new ByteArrayInputStream(file.getBytes()))) {
-            PDFTextStripper stripper = new PDFTextStripper();
-            String text = stripper.getText(document);
-            MaskingOutcome outcome = masker.maskText(text, types);
-
-            PDDocument outDoc = new PDDocument();
-            PDPage page = new PDPage(PDRectangle.LETTER);
-            outDoc.addPage(page);
-            try (PDPageContentStream contentStream = new PDPageContentStream(outDoc, page)) {
-                contentStream.beginText();
-                contentStream.setFont(PDType1Font.HELVETICA, 10);
-                contentStream.newLineAtOffset(40, 750);
-                for (String line : outcome.getText().split("\\r?\\n")) {
-                    contentStream.showText(line);
-                    contentStream.newLineAtOffset(0, -12);
-                }
-                contentStream.endText();
-            }
-
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            outDoc.save(out);
-            outDoc.close();
-            return new MaskingResult(out.toByteArray(), outcome.getText(), outputFilename, "pdf", outcome.getTotal(), outcome.getCounts(),
-                    "Masked PDF is regenerated as plain text; original layout may not be preserved.");
-        }
-    }
-
     private MaskingResult maskStructured(MultipartFile file, String outputFilename, EnumSet<MaskingType> types, boolean fieldAware, boolean isJson) throws Exception {
         String content = new String(file.getBytes(), StandardCharsets.UTF_8);
         ObjectMapper mapper = isJson ? jsonMapper : yamlMapper;
@@ -206,6 +263,10 @@ public class MaskingService {
                     String masked = masker.maskValue(child, type);
                     out.put(key, masked);
                     accumulator.add(new MaskingOutcome(masked, java.util.Map.of(type.name().toLowerCase(), 1), 1));
+                } else if (fieldAware && (child instanceof String || child instanceof Number)) {
+                    String masked = masker.maskGeneric(child.toString());
+                    out.put(key, masked);
+                    accumulator.add(new MaskingOutcome(masked, java.util.Map.of("generic", 1), 1));
                 } else {
                     out.put(key, maskStructuredValue(child, accumulator, types, fieldAware));
                 }
@@ -222,7 +283,9 @@ public class MaskingService {
         }
         if (value instanceof String) {
             if (fieldAware) {
-                return value;
+                String masked = masker.maskGeneric(value.toString());
+                accumulator.add(new MaskingOutcome(masked, java.util.Map.of("generic", 1), 1));
+                return masked;
             }
             MaskingOutcome outcome = masker.maskText(value.toString(), types);
             accumulator.add(outcome);
@@ -230,7 +293,9 @@ public class MaskingService {
         }
         if (value instanceof Number) {
             if (fieldAware) {
-                return value;
+                String masked = masker.maskGeneric(value.toString());
+                accumulator.add(new MaskingOutcome(masked, java.util.Map.of("generic", 1), 1));
+                return masked;
             }
             String text = value.toString();
             MaskingOutcome outcome = masker.maskText(text, types);

@@ -51,6 +51,11 @@ public class MaskingController {
             if (detectedFormat == null || "unknown".equals(detectedFormat)) {
                 detectedFormat = "txt";
             }
+            if ("pdf".equalsIgnoreCase(detectedFormat)) {
+                response.put("success", false);
+                response.put("error", "PDF masking is temporarily disabled. Please use another format.");
+                return ResponseEntity.badRequest().body(response);
+            }
 
             String outputFilename = buildMaskedFilename(originalFilename, detectedFormat);
             EnumSet<MaskingType> typeSet = parseTypes(types);
