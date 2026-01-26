@@ -718,7 +718,7 @@ const BatchProcessingSection = () => {
       if (toFormat) formData.append('toFormat', toFormat);
       if (protobufSchema) formData.append('protobufSchema', protobufSchema);
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8080/api'}/files/upload-batch`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8989/api'}/files/upload-batch`, {
         method: 'POST',
         body: formData
       });
