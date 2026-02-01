@@ -8,17 +8,58 @@
 1. [Introduction](#introduction)
 2. [Installation](#installation)
 3. [Getting Started](#getting-started)
-4. [Format Conversion](#format-conversion)
-5. [Formatting & Beautification](#formatting--beautification)
-6. [Base64 Operations](#base64-operations)
-7. [File Upload & Conversion](#file-upload--conversion)
-8. [Utility Tools](#utility-tools)
-9. [Advanced Features](#advanced-features)
-10. [Troubleshooting](#troubleshooting)
-11. [API Reference](#api-reference)
-12. [Examples & Use Cases](#examples--use-cases)
+4. [Feature Index (Do X → Click Y)](#feature-index-do-x--click-y)
+5. [Format Conversion](#format-conversion)
+6. [Formatting & Beautification](#formatting--beautification)
+7. [Base64 Operations](#base64-operations)
+8. [File Upload & Conversion](#file-upload--conversion)
+9. [Utility Tools](#utility-tools)
+10. [Governance Utilities](#governance-utilities)
+11. [Advanced Features](#advanced-features)
+12. [Troubleshooting](#troubleshooting)
+13. [API Reference](#api-reference)
+14. [Examples & Use Cases](#examples--use-cases)
 
 ---
+
+## How to Use This Runbook (Tech + Non‑Tech)
+
+This single runbook covers **all KonvertR features**.
+
+- **If you are a non‑technical user**: follow **Installation** → **Getting Started** → then jump to the feature you need (Converter / Formatter / Files / Utilities / Governance Utilities).
+- **If you are a technical user**: use the same UI steps, then jump to **API Reference** for automation and integrations.
+- **Default URL**: KonvertR runs locally at `http://localhost:8989` (nothing goes to the internet).
+
+## Feature Index (Do X → Click Y)
+
+Use this as a **one-page shortcut**. Each row tells you exactly where to go in the app.
+
+| What you want to do | Where to click in KonvertR | What to provide | What you get |
+|---|---|---|---|
+| **Convert JSON/YAML/XML/TOML/CSV/TOON/Properties** | **Converter** → **Format Conversion** | Paste input + choose conversion | Converted output to copy |
+| **Convert Protobuf** | **Converter** → **Format Conversion** (choose Protobuf) | Input + **.proto schema** | Converted output |
+| **Analyze TOON efficiency (tokens / size)** | **Converter** → **TOON Statistics & Token Analysis** | Paste data + select original format | Token stats + comparison |
+| **Format/Beautify JSON/YAML/CSV/TOON** | **Formatter** → pick format section | Paste data | Pretty formatted output |
+| **Minify JSON/YAML/XML/CSS** | **Formatter** → **Minify** | Paste data + pick format | Minified output |
+| **Remove comments** | **Formatter** → **Remove Comments** | Paste data + pick format | Clean output (comments removed) |
+| **Beautify CSS** | **Formatter** → **CSS Beautify** | Paste CSS | Formatted CSS |
+| **Base64 encode/decode** | **Base64** tab | Paste text | Encoded/decoded text |
+| **Upload a file and convert it** | **Files** tab | Choose/drag file + pick target format | Converted file download |
+| **Batch convert multiple files** | **Files** tab | Choose multiple files | Converted files / ZIP (if available) |
+| **Validate JSON/YAML/XML/CSV/TOML/Properties** | **Utilities** → **Schema Validation** | Paste data + choose format | Valid/invalid + error details |
+| **Generate hash (MD5/SHA-*)** | **Utilities** → **Hash Generator** | Text + algorithm | Hash output |
+| **Generate UUIDs** | **Utilities** → **UUID Generator** | UUID version + count | List of UUIDs |
+| **Decode a JWT** | **Utilities** → **JWT Decoder** | JWT token | Decoded header/payload |
+| **URL/HTML/Hex encode/decode** | **Utilities** → Encoding sections | Input text | Encoded/decoded output |
+| **Compare two payloads (Diff)** | **Files** (Compare/Diff) or **Utilities** (Diff) | Paste payload A + payload B | Differences + optional report |
+| **Gzip compress/decompress** | **Utilities** → **Compress/Decompress** | Text (compress) or Base64 GZIP (decompress) | Base64 compressed / restored text |
+| **Mask sensitive data in a file (PII)** | **Utilities** → **Masking & Redaction** | Upload file + choose types/categories | Masked file + counts |
+| **Mask sensitive data quickly (no upload)** | **Utilities** → **Masking & Redaction** → **Paste Data** | Paste text/JSON/YAML/CSV | Masked result + download |
+
+**Quick tips:**
+- If something fails, run **Schema Validation** first (many issues are just invalid input).
+- If your browser doesn’t open automatically, manually open `http://localhost:8989`.
+- **PDF masking is currently disabled**; convert PDF content to a supported format and mask again.
 
 ## Introduction
 
@@ -29,10 +70,12 @@ KonvertR is a **universal format converter** and data transformation tool that r
 ### Key Features
 
 - ✅ **15+ Format Conversions** - JSON, YAML, XML, TOML, CSV, Protobuf, Properties
+- ✅ **TOON Support** - Convert/format TOON and analyze TOON token statistics
 - ✅ **Formatting & Beautification** - JSON, YAML, CSV formatters
 - ✅ **Base64 Operations** - Encode/decode Base64 strings
 - ✅ **File Upload** - Drag & drop file conversion
 - ✅ **10+ Utility Tools** - Encoding, JWT, UUID, Hash, Validation, Diff, Minify, Transform
+- ✅ **Data Masking** - Mask sensitive data (PII) across multiple file formats
 - ✅ **100% Offline** - No internet connection required
 - ✅ **Modern UI** - Professional design with dark/light theme
 - ✅ **Cross-Platform** - Works on Windows, macOS, and Linux
@@ -64,41 +107,41 @@ KonvertR is a **universal format converter** and data transformation tool that r
 2. **Run the application:**
    - Navigate to the extracted folder
    - Double-click `KonvertR.exe`
-   - The application will start and open in your default browser at `http://localhost:8080`
+   - The application will start and open in your default browser at `http://localhost:8989`
 
 3. **First Launch:**
    - The first launch may take 10-15 seconds as the backend initializes
    - Your browser will open automatically
-   - If it doesn't, manually open `http://localhost:8080`
+   - If it doesn't, manually open `http://localhost:8989`
 
 #### macOS
 
-1. **Download the portable package:**
-   - Download `KonvertR-Portable-1.0.0.zip` from releases
-   - Extract the ZIP file to any location (e.g., `~/Applications/KonvertR/`)
+1. **Download KonvertR:**
+   - Download `KonvertR-1.0.0.dmg` from releases
 
-2. **Run the application:**
-   - Navigate to the extracted folder
-   - Double-click `KonvertR.app`
-   - The application will start and open in your default browser at `http://localhost:8080`
+2. **Install the application:**
+   - Open the DMG file
+   - Drag `KonvertR.app` to your Applications folder
 
-3. **macOS Security (First Launch):**
-   - macOS may show a security warning
-   - Go to **System Preferences → Security & Privacy**
-   - Click **"Open Anyway"** next to the KonvertR message
-   - Or right-click the app → **Open** → Confirm
+3. **Remove security restrictions:**
+   - In the downloaded DMG (or the folder you extracted), double-click `KonvertR-Setup.command`
+   - The app will launch automatically at `http://localhost:8989`
+
+4. **Alternative (if setup script is not available):**
+   - Right-click `KonvertR.app` → **Open** → Confirm
+   - Or go to **System Preferences → Security & Privacy** → Click **"Open Anyway"**
 
 ## Getting Started
 
 ### First Launch
 
 1. **Start KonvertR:**
-   - Windows: Double-click `KonvertR.exe`
-   - macOS: Double-click `KonvertR.app`
+   - **Windows:** Double-click `KonvertR.exe`
+   - **macOS:** Double-click `KonvertR-Setup.command` (first time) or `KonvertR.app` (subsequent launches)
 
 2. **Wait for initialization:**
    - Backend starts (10-15 seconds)
-   - Browser opens automatically to `http://localhost:8080`
+   - Browser opens automatically to `http://localhost:8989`
 
 3. **Verify it's working:**
    - You should see the KonvertR interface
@@ -112,7 +155,7 @@ The KonvertR interface has several tabs:
 - **Formatter** - Beautify and format JSON, YAML, CSV
 - **Base64** - Encode/decode Base64 strings
 - **Files** - Upload and convert files
-- **Utilities** - Various utility tools (encoding, JWT, UUID, hash, etc.)
+- **Utilities** - Various utility tools (encoding, JWT, UUID, hash, data masking, etc.)
 
 ### Quick Test
 
@@ -151,12 +194,34 @@ KonvertR supports bidirectional conversion between multiple formats:
 | JSON | YAML | ✅ Yes |
 | JSON | TOML | ✅ Yes |
 | JSON | XML | ✅ Yes |
+| JSON | CSV | ✅ Yes |
+| JSON | TOON | ✅ Yes |
 | JSON | Protobuf | ✅ Yes (requires schema) |
+| YAML | TOON | ✅ Yes |
+| TOML | TOON | ✅ Yes |
+| XML | TOON | ✅ Yes |
+| CSV | TOON | ✅ Yes |
 | YAML | CSV | ✅ Yes |
 | CSV | JSON | ✅ Yes |
 | CSV | XML | ✅ Yes |
 | CSV | YAML | ✅ Yes |
 | Properties | YAML | ⚠️ One-way only |
+| Properties | TOON | ⚠️ One-way only |
+
+### TOON (Conversion + Statistics)
+
+KonvertR supports the **TOON** format in the Converter and Formatter.
+
+**Convert to/from TOON (UI):**
+- Go to **Converter** tab
+- Choose a TOON conversion (example: **JSON ↔ TOON**, **YAML ↔ TOON**, **CSV ↔ TOON**, **XML ↔ TOON**, **TOML ↔ TOON**)
+- Paste data → click **Convert**
+
+**TOON Statistics & Token Analysis (UI):**
+- Go to **Converter** tab
+- Open **"TOON Statistics & Token Analysis"**
+- Select the original format (JSON/YAML/XML/TOML/CSV/TOON)
+- Paste data → click **Analyze**
 
 ### JSON ↔ YAML
 
@@ -204,7 +269,7 @@ application:
 ```yaml
 server:
   host: localhost
-  port: 8080
+  port: 8989
   ssl:
     enabled: true
     certificate: /path/to/cert.pem
@@ -215,7 +280,7 @@ server:
 {
   "server": {
     "host": "localhost",
-    "port": 8080,
+    "port": 8989,
     "ssl": {
       "enabled": true,
       "certificate": "/path/to/cert.pem"
@@ -1124,6 +1189,227 @@ Transform and manipulate data structures.
 
 ---
 
+## Governance Utilities
+
+KonvertR includes powerful data masking capabilities to protect sensitive information in your files. This feature helps you comply with data privacy regulations by masking personally identifiable information (PII) and other sensitive data.
+
+### Data Masking
+
+**Overview:**
+
+The Data Masking feature automatically detects and masks sensitive information across multiple file formats, making it safe to share data for testing, development, or analysis purposes.
+
+**Supported File Formats:**
+- `.txt` - Plain text files
+- `.csv` - CSV files
+- `.json` - JSON files
+- `.yaml`, `.yml` - YAML files
+- `.docx` - Word documents
+- `.xlsx` - Excel spreadsheets
+- `.pdf` - PDF documents (**currently disabled** in this release)
+
+**Sensitive Data Types Detected:**
+
+| Type | Description | Example |
+|------|-------------|---------|
+| **Email** | Email addresses | user@example.com → uXXX@eXXXXXX.com |
+| **Phone** | Phone numbers | +1 415 555 2671 → +1 415 XXX 2671 |
+| **SSN** | Social Security Number (US) | 123-45-6789 → XXX-XX-6789 |
+| **PAN** | Permanent Account Number (India) | ABCDE1234F → XXXXXXX34F |
+| **Aadhaar** | Aadhaar Number (India) | 1234 5678 9012 → XXXX XXXX 9012 |
+| **Card** | Credit/Debit card numbers | 4111 1111 1111 1111 → XXXX XXXX XXXX 1111 |
+| **Account** | Bank account numbers | 021201558009 → XXXXXXXX8009 |
+| **Secret** | Passwords, API keys, tokens | supersecret123 → XXXXXXXXXXXXX |
+| **GSTIN** | GST Identification (India) | 27ABCDE1234F1Z5 → 27XXXXXXXXX1Z5 |
+| **VAT** | VAT numbers | GB123456789 → GBXXXXXXX89 |
+| **EIN** | Employer ID (US) | 12-3456789 → XX-XXX6789 |
+| **TIN** | Tax Identification Number | 123456789 → XXXXX6789 |
+| **Invoice ID** | Invoice identifiers | INV-2024-0001 → INV-XXXX-0001 |
+| **Case Number** | Legal case numbers | 2024/ABC/123 → 2024/XXX/123 |
+| **Registration ID** | Registration numbers | REG-99887 → REG-XX887 |
+| **License ID** | License numbers | LIC-445566 → LIC-XXX566 |
+| **Address** | Street addresses | 123 Main St → XXX Main St |
+
+### How to Use Data Masking
+
+#### Option 1: Web Interface
+
+**Steps:**
+
+1. Go to **Utilities** tab
+2. Expand **"Data Masking"** section
+3. Choose input mode:
+   - **Upload File** (recommended for most users)
+   - **Paste Data** (quick masking without uploading a file)
+4. Click **"Choose File"** or drag & drop your file (Upload mode), OR paste text (Paste mode)
+4. Select masking options:
+   - **All Types** - Mask all sensitive data types (recommended)
+   - **Custom** - Select specific data types to mask
+   - **Field-Aware** - Use field names to detect sensitive data (for structured files)
+5. Click **"Mask Data"**
+6. Download the masked file
+
+**Note (PDF):** PDF masking is temporarily disabled. If you need masking, convert PDF content to a supported format (TXT/CSV/JSON/YAML/DOCX/XLSX) and run masking again.
+
+**Example: Mask a CSV File**
+
+**Input (`employees.csv`):**
+```csv
+name,email,phone,ssn
+John Doe,john@company.com,415-555-1234,123-45-6789
+Jane Smith,jane@company.com,415-555-5678,987-65-4321
+```
+
+**Output (Masked):**
+```csv
+name,email,phone,ssn
+John Doe,jXXX@cXXXXXX.com,415-XXX-1234,XXX-XX-6789
+Jane Smith,jXXX@cXXXXXX.com,415-XXX-5678,XXX-XX-4321
+```
+
+**Example: Mask a JSON File**
+
+**Input (`user-data.json`):**
+```json
+{
+  "name": "John Doe",
+  "email": "john.doe@example.com",
+  "phone": "+1 415-555-2671",
+  "ssn": "123-45-6789",
+  "credit_card": "4111 1111 1111 1111",
+  "account": "021201558009"
+}
+```
+
+**Output (Masked):**
+```json
+{
+  "name": "John Doe",
+  "email": "jXXX.dXX@eXXXXXX.com",
+  "phone": "+1 415-XXX-2671",
+  "ssn": "XXX-XX-6789",
+  "credit_card": "XXXX XXXX XXXX 1111",
+  "account": "XXXXXXXX8009"
+}
+```
+
+#### Option 2: API
+
+**Endpoint:** `POST /api/mask/file`
+
+**Request:** `multipart/form-data`
+- `file`: File to mask
+- `format`: File format (optional, auto-detected)
+- `types`: Comma-separated list of types to mask (optional, defaults to all)
+- `fieldAware`: Enable field-aware masking for structured files (optional, default: true)
+
+**Example using cURL:**
+
+```bash
+curl -X POST http://localhost:8989/api/mask/file \
+  -F "file=@employees.csv" \
+  -F "format=csv" \
+  -F "types=email,phone,ssn" \
+  -F "fieldAware=true" \
+  --output masked-employees.csv
+```
+
+**Example using Python:**
+
+```python
+import requests
+
+url = "http://localhost:8989/api/mask/file"
+files = {"file": open("employees.csv", "rb")}
+data = {
+    "format": "csv",
+    "types": "email,phone,ssn",
+    "fieldAware": "true"
+}
+
+response = requests.post(url, files=files, data=data)
+
+with open("masked-employees.csv", "wb") as f:
+    f.write(response.content)
+```
+
+### Masking Features
+
+#### Field-Aware Masking
+
+For structured files (JSON, YAML, CSV, Excel), field-aware masking uses field names to intelligently detect sensitive data types.
+
+**Example:**
+
+```json
+{
+  "user_email": "john@example.com",
+  "contact_phone": "415-555-1234",
+  "customer_ssn": "123-45-6789"
+}
+```
+
+The masker recognizes `email`, `phone`, and `ssn` in field names and applies appropriate masking.
+
+#### Smart Last-Digit Preservation
+
+Masking preserves the last few characters for verification purposes while hiding sensitive parts:
+
+- **Emails**: Masks username and domain, keeps @ and extension
+- **Phone**: Keeps last 4 digits
+- **SSN**: Keeps last 4 digits
+- **PAN**: Keeps last 4 characters
+- **Cards**: Keeps last 4 digits (industry standard)
+- **Accounts**: Keeps last 4 digits
+
+### Use Cases
+
+**1. Test Data Generation**
+- Mask production data for testing environments
+- Share data with QA teams safely
+- Create realistic test datasets
+
+**2. Compliance & Privacy**
+- GDPR compliance for EU data
+- HIPAA compliance for healthcare data
+- PCI DSS compliance for payment data
+- Data protection for demos and presentations
+
+**3. Data Analysis**
+- Share data with analysts without exposing PII
+- Create anonymized datasets for research
+- Export reports with masked sensitive information
+
+**4. Documentation & Training**
+- Create documentation with realistic but safe examples
+- Training materials without real customer data
+- Demo environments with masked data
+
+### Best Practices
+
+**✅ Do:**
+- Always mask data before sharing outside your organization
+- Test masking on a sample file first
+- Keep the original files backed up
+- Use field-aware masking for structured data
+- Verify masked output before distribution
+
+**❌ Don't:**
+- Don't rely solely on masking for data security
+- Don't assume masking is reversible (it's not)
+- Don't mask data needed for production use
+- Don't share masking patterns (reduces security)
+
+### Security Notes
+
+- **Irreversible**: Masking is one-way and cannot be reversed
+- **Local Processing**: All masking happens locally on your machine
+- **No Cloud Upload**: Data never leaves your computer
+- **Pattern-Based**: Uses regex patterns for detection
+- **Format Preserved**: Maintains original file structure and format
+
+---
+
 ## Advanced Features
 
 ### Protobuf Schema Creation
@@ -1195,9 +1481,9 @@ message Person {
    ```powershell
    java -version
    ```
-2. Check if port 8080 is available:
+2. Check if port 8989 is available:
    ```powershell
-   netstat -ano | findstr :8080
+   netstat -ano | findstr :8989
    ```
 3. Run as Administrator (right-click → Run as Administrator)
 4. Check Windows Defender/Antivirus (may block the app)
@@ -1207,9 +1493,9 @@ message Person {
    ```bash
    java -version
    ```
-2. Check if port 8080 is available:
+2. Check if port 8989 is available:
    ```bash
-   lsof -i :8080
+   lsof -i :8989
    ```
 3. Allow app in Security & Privacy:
    - System Preferences → Security & Privacy
@@ -1221,19 +1507,19 @@ message Person {
 
 **Solutions:**
 1. Manually open browser
-2. Navigate to `http://localhost:8080`
+2. Navigate to `http://localhost:8989`
 3. Check if backend is running (check task manager/activity monitor)
 
 ### Port Already in Use
 
-**Problem:** Error: "Port 8080 is already in use"
+**Problem:** Error: "Port 8989 is already in use"
 
 **Solutions:**
 
 **Windows:**
 ```powershell
-# Find process using port 8080
-netstat -ano | findstr :8080
+# Find process using port 8989
+netstat -ano | findstr :8989
 
 # Kill the process (replace PID with actual process ID)
 taskkill /PID <PID> /F
@@ -1241,8 +1527,8 @@ taskkill /PID <PID> /F
 
 **macOS:**
 ```bash
-# Find process using port 8080
-lsof -i :8080
+# Find process using port 8989
+lsof -i :8989
 
 # Kill the process (replace PID with actual process ID)
 kill -9 <PID>
@@ -1313,7 +1599,7 @@ KonvertR provides a REST API for programmatic access.
 ### Base URL
 
 ```
-http://localhost:8080/api
+http://localhost:8989/api
 ```
 
 ### Format Conversion
@@ -1418,7 +1704,7 @@ http://localhost:8080/api
 **Request:**
 ```json
 {
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "input": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 }
 ```
 
@@ -1461,9 +1747,19 @@ http://localhost:8080/api
 **Request:**
 ```json
 {
-  "file1": "{\"name\":\"John\"}",
-  "file2": "{\"name\":\"Jane\"}",
+  "input1": "{\"name\":\"John\"}",
+  "input2": "{\"name\":\"Jane\"}",
   "format": "json"
+}
+```
+
+#### Diff Report (Human-Readable)
+**Endpoint:** `POST /api/diff/report`
+
+**Request:**
+```json
+{
+  "comparisonResult": { }
 }
 ```
 
@@ -1477,6 +1773,59 @@ http://localhost:8080/api
   "format": "json"
 }
 ```
+
+#### Remove Comments
+**Endpoint:** `POST /api/remove-comments`
+
+**Request:**
+```json
+{
+  "input": "/* comment */ { \"a\": 1 }",
+  "format": "json"
+}
+```
+
+#### CSS Beautify
+**Endpoint:** `POST /api/beautify/css`
+
+**Request:**
+```json
+{
+  "input": "body{color:red;}"
+}
+```
+
+#### Gzip Compress / Decompress (Base64)
+- `POST /api/compress/gzip`
+- `POST /api/decompress/gzip`
+
+**Compress request:**
+```json
+{
+  "input": "text to compress"
+}
+```
+
+**Decompress request:**
+```json
+{
+  "input": "BASE64_ENCODED_GZIP"
+}
+```
+
+#### TOON Statistics
+**Endpoint:** `POST /api/toon/statistics`
+
+**Request:**
+```json
+{
+  "input": "{ \"a\": 1 }",
+  "originalFormat": "json"
+}
+```
+
+#### Trial Status
+**Endpoint:** `GET /api/trial/status`
 
 #### Data Transformation
 
@@ -1513,7 +1862,7 @@ See main README.md for complete API documentation.
 {
   "server": {
     "host": "localhost",
-    "port": 8080
+    "port": 8989
   },
   "database": {
     "url": "jdbc:postgresql://localhost:5432/mydb",
@@ -1526,7 +1875,7 @@ See main README.md for complete API documentation.
 ```yaml
 server:
   host: localhost
-  port: 8080
+  port: 8989
 database:
   url: jdbc:postgresql://localhost:5432/mydb
   username: admin
@@ -1789,7 +2138,7 @@ Differences:
 #### Convert JSON to YAML
 
 ```bash
-curl -X POST http://localhost:8080/api/convert \
+curl -X POST http://localhost:8989/api/convert \
   -H "Content-Type: application/json" \
   -d '{
     "input": "{\"name\":\"John\",\"age\":30}",
@@ -1801,7 +2150,7 @@ curl -X POST http://localhost:8080/api/convert \
 #### Format JSON
 
 ```bash
-curl -X POST http://localhost:8080/api/format \
+curl -X POST http://localhost:8989/api/format \
   -H "Content-Type: application/json" \
   -d '{
     "input": "{\"name\":\"John\",\"age\":30}",
@@ -1812,7 +2161,7 @@ curl -X POST http://localhost:8080/api/format \
 #### Encode Base64
 
 ```bash
-curl -X POST http://localhost:8080/api/base64/encode \
+curl -X POST http://localhost:8989/api/base64/encode \
   -H "Content-Type: application/json" \
   -d '{
     "input": "Hello, World!"
@@ -1822,7 +2171,7 @@ curl -X POST http://localhost:8080/api/base64/encode \
 #### Generate UUID
 
 ```bash
-curl -X POST http://localhost:8080/api/utilities/uuid/generate \
+curl -X POST http://localhost:8989/api/utilities/uuid/generate \
   -H "Content-Type: application/json" \
   -d '{
     "version": "v4",
@@ -1833,7 +2182,7 @@ curl -X POST http://localhost:8080/api/utilities/uuid/generate \
 #### Generate Hash
 
 ```bash
-curl -X POST http://localhost:8080/api/utilities/hash/generate \
+curl -X POST http://localhost:8989/api/utilities/hash/generate \
   -H "Content-Type: application/json" \
   -d '{
     "input": "password123",
@@ -1848,7 +2197,7 @@ curl -X POST http://localhost:8080/api/utilities/hash/generate \
 ```python
 import requests
 
-url = "http://localhost:8080/api/convert"
+url = "http://localhost:8989/api/convert"
 data = {
     "input": '{"name":"John","age":30}',
     "fromFormat": "json",
@@ -1864,7 +2213,7 @@ print(response.json()["output"])
 ```python
 import requests
 
-url = "http://localhost:8080/api/format"
+url = "http://localhost:8989/api/format"
 data = {
     "input": '{"name":"John","age":30}',
     "formatType": "JSON"
@@ -1879,7 +2228,7 @@ print(response.json()["output"])
 ```python
 import requests
 
-url = "http://localhost:8080/api/files/upload"
+url = "http://localhost:8989/api/files/upload"
 files = {"file": open("config.json", "rb")}
 data = {
     "fromFormat": "json",
@@ -1897,7 +2246,7 @@ print(response.json()["output"])
 ```javascript
 const fetch = require('node-fetch');
 
-const url = 'http://localhost:8080/api/convert';
+const url = 'http://localhost:8989/api/convert';
 const data = {
   input: '{"name":"John","age":30}',
   fromFormat: 'json',
@@ -1918,7 +2267,7 @@ fetch(url, {
 ```javascript
 const fetch = require('node-fetch');
 
-const url = 'http://localhost:8080/api/format';
+const url = 'http://localhost:8989/api/format';
 const data = {
   input: '{"name":"John","age":30}',
   formatType: 'JSON'
@@ -1944,7 +2293,7 @@ $body = @{
     toFormat = "yaml"
 } | ConvertTo-Json
 
-$response = Invoke-RestMethod -Uri "http://localhost:8080/api/convert" `
+$response = Invoke-RestMethod -Uri "http://localhost:8989/api/convert" `
     -Method Post `
     -ContentType "application/json" `
     -Body $body
@@ -1960,7 +2309,7 @@ $body = @{
     formatType = "JSON"
 } | ConvertTo-Json
 
-$response = Invoke-RestMethod -Uri "http://localhost:8080/api/format" `
+$response = Invoke-RestMethod -Uri "http://localhost:8989/api/format" `
     -Method Post `
     -ContentType "application/json" `
     -Body $body
@@ -2096,13 +2445,14 @@ For issues, questions, or contributions:
 
 ## Conclusion
 
-KonvertR is a powerful, offline-first tool for format conversion and data transformation. This guide covers all features with practical examples for Windows and macOS users.
+KonvertR is a powerful, offline-first tool for format conversion, data transformation, and data governance. This guide covers all features with practical examples for Windows and macOS users.
 
 **Key Takeaways:**
 
 ✅ **100% Offline** - No internet required  
 ✅ **15+ Format Conversions** - JSON, YAML, XML, TOML, CSV, Protobuf  
 ✅ **Comprehensive Utilities** - Encoding, JWT, UUID, Hash, Validation, Diff, Transform  
+✅ **Data Masking** - Protect sensitive information (PII) across multiple file formats  
 ✅ **File Upload Support** - Drag & drop, batch processing  
 ✅ **REST API** - Programmatic access  
 ✅ **Cross-Platform** - Windows, macOS, Linux  
@@ -2111,5 +2461,5 @@ KonvertR is a powerful, offline-first tool for format conversion and data transf
 
 ---
 
-*Last Updated: 2024*  
+*Last Updated: 2026*  
 *Version: 1.0.0*

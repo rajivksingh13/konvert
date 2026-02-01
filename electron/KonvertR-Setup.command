@@ -4,7 +4,7 @@ set -e
 APP_PATH="/Applications/KonvertR.app"
 
 if [ ! -d "$APP_PATH" ]; then
-  echo "KonvertR.app not found in /Applications."
+  echo "KonvertR.app not found at: $APP_PATH"
   echo "Please move KonvertR.app to /Applications first, then run this script again."
   exit 1
 fi
