@@ -116,20 +116,25 @@ KonvertR is a **universal format converter** and data transformation tool that r
 
 #### macOS
 
-1. **Download KonvertR:**
-   - Download `KonvertR-1.0.0.dmg` from releases
+1. **Download the portable package:**
+   - Download `KonvertR-Portable-1.0.0.zip` (macOS) from releases
+   - Extract the ZIP file
 
 2. **Install the application:**
-   - Open the DMG file
-   - Drag `KonvertR.app` to your Applications folder
+   - Move `KonvertR.app` from the extracted folder to `/Applications`
 
-3. **Remove security restrictions:**
-   - In the downloaded DMG (or the folder you extracted), double-click `KonvertR-Setup.command`
-   - The app will launch automatically at `http://localhost:8989`
+3. **First launch — remove security restrictions:**
+   - Double-click `KonvertR-Setup.command` (included in the extracted folder)
+   - This removes the macOS quarantine flag and launches KonvertR automatically
+   - The application will open in your default browser at `http://localhost:8989`
 
-4. **Alternative (if setup script is not available):**
-   - Right-click `KonvertR.app` → **Open** → Confirm
-   - Or go to **System Preferences → Security & Privacy** → Click **"Open Anyway"**
+4. **Subsequent launches:**
+   - Double-click `KonvertR.app` in `/Applications` (or open from Launchpad)
+
+5. **Alternative (if setup script is not available):**
+   - Open Terminal and run: `xattr -dr com.apple.quarantine /Applications/KonvertR.app`
+   - Or right-click `KonvertR.app` → **Open** → Confirm
+   - Or go to **System Settings → Privacy & Security** → Click **"Open Anyway"**
 
 ## Getting Started
 
@@ -137,7 +142,8 @@ KonvertR is a **universal format converter** and data transformation tool that r
 
 1. **Start KonvertR:**
    - **Windows:** Double-click `KonvertR.exe`
-   - **macOS:** Double-click `KonvertR-Setup.command` (first time) or `KonvertR.app` (subsequent launches)
+   - **macOS (first time):** Double-click `KonvertR-Setup.command` from the extracted folder
+   - **macOS (subsequent):** Double-click `KonvertR.app` in `/Applications`
 
 2. **Wait for initialization:**
    - Backend starts (10-15 seconds)
