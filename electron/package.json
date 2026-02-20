@@ -25,7 +25,6 @@
       "preload.js",
       "loading.html",
       "error.html",
-      "KonvertR-Setup.command",
       "package.json",
       "!**/node_modules/**/*",
       "!**/.git/**/*"

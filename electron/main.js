@@ -60,35 +60,51 @@ const BACKEND_URL = `http://localhost:${BACKEND_PORT}`;
 function findJava() {
   const javaHome = process.env.JAVA_HOME;
   if (javaHome) {
-    const javaExe = path.join(javaHome, 'bin', 'java.exe');
+    const javaExe = path.join(javaHome, 'bin', process.platform === 'win32' ? 'java.exe' : 'java');
     if (fs.existsSync(javaExe)) {
       return javaExe;
     }
-    const javaBin = path.join(javaHome, 'bin', 'java');
-    if (fs.existsSync(javaBin)) {
-      return javaBin;
-    }
   }
-  
-  // Try common locations
-  const commonPaths = [
-    'java',
-    'java.exe',
-    path.join('C:', 'Program Files', 'Java', 'jdk-17', 'bin', 'java.exe'),
-    path.join('C:', 'Program Files', 'Java', 'jre-17', 'bin', 'java.exe'),
-    path.join(process.env.PROGRAMFILES, 'Java', 'jdk-17', 'bin', 'java.exe'),
-    path.join(process.env['PROGRAMFILES(X86)'], 'Java', 'jdk-17', 'bin', 'java.exe')
-  ];
-  
+
+  const commonPaths = ['java'];
+
+  if (process.platform === 'win32') {
+    commonPaths.push('java.exe');
+    const programFiles = process.env.PROGRAMFILES;
+    const programFilesX86 = process.env['PROGRAMFILES(X86)'];
+    if (programFiles) {
+      commonPaths.push(path.join(programFiles, 'Java', 'jdk-17', 'bin', 'java.exe'));
+    }
+    if (programFilesX86) {
+      commonPaths.push(path.join(programFilesX86, 'Java', 'jdk-17', 'bin', 'java.exe'));
+    }
+  } else if (process.platform === 'darwin') {
+    commonPaths.push('/usr/bin/java');
+    commonPaths.push('/usr/local/bin/java');
+    commonPaths.push('/opt/homebrew/bin/java');
+    const libexecJava = '/usr/libexec/java_home';
+    try {
+      const macJavaHome = require('child_process').execSync(libexecJava, { encoding: 'utf8' }).trim();
+      if (macJavaHome) {
+        commonPaths.push(path.join(macJavaHome, 'bin', 'java'));
+      }
+    } catch (e) {
+      // java_home helper not available
+    }
+  } else {
+    commonPaths.push('/usr/bin/java');
+    commonPaths.push('/usr/local/bin/java');
+  }
+
   for (const javaPath of commonPaths) {
     try {
-      const result = require('child_process').execSync(`"${javaPath}" -version`, { stdio: 'ignore' });
+      require('child_process').execSync(`"${javaPath}" -version`, { stdio: 'ignore' });
       return javaPath;
     } catch (e) {
       // Continue searching
     }
   }
-  
+
   return 'java'; // Fallback to PATH
 }
 

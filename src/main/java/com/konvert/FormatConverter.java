@@ -15,6 +15,8 @@ import org.apache.commons.csv.CSVPrinter;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class FormatConverter {
     
@@ -22,6 +24,11 @@ public class FormatConverter {
     private static final YAMLMapper yamlMapper = new YAMLMapper();
     private static final XmlMapper xmlMapper = new XmlMapper();
     private static final Yaml yaml = new Yaml();
+
+    private static final Pattern TOON_TABULAR_PATTERN =
+        Pattern.compile("^(.+?)\\[(\\d+)\\]\\{([^}]+)\\}:\\s*$");
+    private static final Pattern TOON_PRIMITIVE_ARRAY_PATTERN =
+        Pattern.compile("^(.+?)\\[(\\d+)\\]:\\s*(.+)$");
     
     public static String convert(String input, String fromFormat, String toFormat, String protobufSchema) 
             throws Exception {
@@ -206,17 +213,20 @@ public class FormatConverter {
     }
     
     private static void mapToTomlRecursive(Map<String, Object> map, StringBuilder sb, String prefix) {
+        // First pass: write leaf values using LOCAL key names (not dotted paths)
         for (Map.Entry<String, Object> entry : map.entrySet()) {
-            String key = prefix.isEmpty() ? entry.getKey() : prefix + "." + entry.getKey();
             Object value = entry.getValue();
-            
+            if (!(value instanceof Map)) {
+                sb.append(entry.getKey()).append(" = ").append(formatTomlValue(value)).append("\n");
+            }
+        }
+        // Second pass: write nested table sections with full dotted path in header
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            Object value = entry.getValue();
             if (value instanceof Map) {
-                sb.append("\n[").append(key).append("]\n");
-                mapToTomlRecursive((Map<String, Object>) value, sb, key);
-            } else if (value instanceof List) {
-                sb.append(key).append(" = ").append(formatTomlValue(value)).append("\n");
-            } else {
-                sb.append(key).append(" = ").append(formatTomlValue(value)).append("\n");
+                String tablePath = prefix.isEmpty() ? entry.getKey() : prefix + "." + entry.getKey();
+                sb.append("\n[").append(tablePath).append("]\n");
+                mapToTomlRecursive((Map<String, Object>) value, sb, tablePath);
             }
         }
     }
@@ -616,42 +626,176 @@ public class FormatConverter {
             .replace("'", "&apos;");
     }
     
-    // TOON to Map
-    // TOON (Token-Oriented Object Notation) is a compact JSON-compatible format
-    // Since TOON represents the same data model as JSON, we parse it as JSON
+    // TOON to Map - proper recursive descent parser
     private static Object toonToMap(String toonString) throws Exception {
         if (toonString == null || toonString.trim().isEmpty()) {
             throw new IllegalArgumentException("TOON input cannot be empty");
         }
-        
-        try {
-            // TOON format is JSON-compatible, so we can parse it as JSON
-            // TOON may use slightly different syntax but represents the same data structure
-            String normalized = normalizeToonToJson(toonString);
-            return jsonMapper.readValue(normalized, Object.class);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to parse TOON: " + e.getMessage(), e);
+
+        String trimmed = toonString.trim();
+
+        // Try JSON parse first (handles the trivial case where TOON is valid JSON)
+        if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+            try {
+                return jsonMapper.readValue(trimmed, Object.class);
+            } catch (Exception ignored) {
+                // Not valid JSON, fall through to TOON parser
+            }
         }
+
+        String[] lines = toonString.split("\\r?\\n");
+        int[] pos = {0};
+        return parseToonBlock(lines, pos, false);
     }
-    
-    // Normalize TOON syntax to JSON
-    // TOON uses compact syntax but is JSON-compatible
-    private static String normalizeToonToJson(String toon) {
-        String json = toon.trim();
-        
-        // Replace single quotes with double quotes (if used)
-        json = json.replace("'", "\"");
-        
-        // Remove trailing commas before closing brackets/braces
-        json = json.replaceAll(",\\s*\\}", "}");
-        json = json.replaceAll(",\\s*\\]", "]");
-        
-        // If the string doesn't start with { or [, wrap it in braces
-        if (!json.startsWith("{") && !json.startsWith("[")) {
-            json = "{" + json + "}";
+
+    private static Map<String, Object> parseToonBlock(String[] lines, int[] pos, boolean insideBraces) {
+        Map<String, Object> map = new LinkedHashMap<>();
+
+        while (pos[0] < lines.length) {
+            String line = lines[pos[0]].trim();
+
+            if (line.isEmpty()) { pos[0]++; continue; }
+
+            // Closing brace ends current block
+            if (line.equals("}")) {
+                if (insideBraces) { pos[0]++; }
+                return map;
+            }
+
+            // Opening brace at top level (wrapped TOON)
+            if (line.equals("{") && !insideBraces) {
+                pos[0]++;
+                Map<String, Object> inner = parseToonBlock(lines, pos, true);
+                map.putAll(inner);
+                continue;
+            }
+
+            // Tabular array:  key[N]{field1,field2,...}:
+            Matcher tabMatcher = TOON_TABULAR_PATTERN.matcher(line);
+            if (tabMatcher.matches()) {
+                String key = tabMatcher.group(1).trim();
+                int count = Integer.parseInt(tabMatcher.group(2));
+                String[] fields = tabMatcher.group(3).split(",");
+                for (int i = 0; i < fields.length; i++) fields[i] = fields[i].trim();
+
+                pos[0]++;
+                List<Map<String, Object>> rows = new ArrayList<>();
+                for (int r = 0; r < count && pos[0] < lines.length; ) {
+                    String dataLine = lines[pos[0]].trim();
+                    if (dataLine.isEmpty() || dataLine.equals("}")) break;
+                    String[] values = splitToonCsvRow(dataLine);
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    for (int f = 0; f < fields.length; f++) {
+                        row.put(fields[f], f < values.length ? parseToonScalar(values[f].trim()) : "");
+                    }
+                    rows.add(row);
+                    pos[0]++;
+                    r++;
+                }
+                map.put(key, rows);
+                continue;
+            }
+
+            // Primitive array:  key[N]: val1, val2, ...
+            Matcher primMatcher = TOON_PRIMITIVE_ARRAY_PATTERN.matcher(line);
+            if (primMatcher.matches()) {
+                String key = primMatcher.group(1).trim();
+                String valsStr = primMatcher.group(3);
+                String[] vals = splitToonCsvRow(valsStr);
+                List<Object> list = new ArrayList<>();
+                for (String v : vals) { list.add(parseToonScalar(v.trim())); }
+                map.put(key, list);
+                pos[0]++;
+                continue;
+            }
+
+            // key: value  or  key: {
+            int colonIdx = findToonKeyColon(line);
+            if (colonIdx > 0) {
+                String key = line.substring(0, colonIdx).trim();
+                String rest = line.substring(colonIdx + 1).trim();
+
+                if (rest.equals("{")) {
+                    pos[0]++;
+                    map.put(key, parseToonBlock(lines, pos, true));
+                } else if (rest.startsWith("[")) {
+                    try {
+                        map.put(key, jsonMapper.readValue(rest, Object.class));
+                    } catch (Exception e) {
+                        map.put(key, parseToonScalar(rest));
+                    }
+                    pos[0]++;
+                } else {
+                    map.put(key, parseToonScalar(rest));
+                    pos[0]++;
+                }
+                continue;
+            }
+
+            pos[0]++;
         }
-        
-        return json;
+
+        return map;
+    }
+
+    private static int findToonKeyColon(String line) {
+        boolean inQuotes = false;
+        int bracketDepth = 0;
+        int braceDepth = 0;
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (c == '"' && (i == 0 || line.charAt(i - 1) != '\\')) {
+                inQuotes = !inQuotes;
+            }
+            if (!inQuotes) {
+                if (c == '[') bracketDepth++;
+                if (c == ']') bracketDepth--;
+                if (c == '{') braceDepth++;
+                if (c == '}') braceDepth--;
+                if (c == ':' && bracketDepth == 0 && braceDepth == 0) {
+                    return i;
+                }
+            }
+        }
+        return -1;
+    }
+
+    private static Object parseToonScalar(String value) {
+        if (value == null || value.isEmpty()) return "";
+        if (value.startsWith("\"") && value.endsWith("\"") && value.length() >= 2) {
+            return value.substring(1, value.length() - 1)
+                .replace("\\\"", "\"").replace("\\\\", "\\").replace("\\n", "\n");
+        }
+        if ("true".equalsIgnoreCase(value)) return Boolean.TRUE;
+        if ("false".equalsIgnoreCase(value)) return Boolean.FALSE;
+        if ("null".equalsIgnoreCase(value)) return null;
+        try {
+            long l = Long.parseLong(value);
+            return (l >= Integer.MIN_VALUE && l <= Integer.MAX_VALUE) ? (int) l : l;
+        } catch (NumberFormatException ignored) {}
+        try { return Double.parseDouble(value); }
+        catch (NumberFormatException ignored) {}
+        return value;
+    }
+
+    private static String[] splitToonCsvRow(String line) {
+        List<String> values = new ArrayList<>();
+        boolean inQuotes = false;
+        StringBuilder current = new StringBuilder();
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (c == '"' && (i == 0 || line.charAt(i - 1) != '\\')) {
+                inQuotes = !inQuotes;
+                current.append(c);
+            } else if (c == ',' && !inQuotes) {
+                values.add(current.toString().trim());
+                current = new StringBuilder();
+            } else {
+                current.append(c);
+            }
+        }
+        if (current.length() > 0) { values.add(current.toString().trim()); }
+        return values.toArray(new String[0]);
     }
     
     // Map to TOON

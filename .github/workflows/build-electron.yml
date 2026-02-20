@@ -232,6 +232,28 @@ jobs:
         
         echo "✓ macOS package created: $(basename $ZIP_FILE)"
         echo "  Size: $(du -h "$ZIP_FILE" | cut -f1)"
+
+    - name: Bundle KonvertR-Setup.command into macOS ZIP
+      run: |
+        ZIP_FILE=$(find dist-electron -name "KonvertR-Portable-*.zip" | head -1)
+        if [ -z "$ZIP_FILE" ]; then
+          echo "ERROR: ZIP not found, skipping setup command bundling"
+          exit 1
+        fi
+
+        WORK_DIR=$(mktemp -d)
+        echo "Extracting ZIP to inject setup command..."
+        unzip -q "$ZIP_FILE" -d "$WORK_DIR"
+
+        cp electron/KonvertR-Setup.command "$WORK_DIR/KonvertR-Setup.command"
+        chmod +x "$WORK_DIR/KonvertR-Setup.command"
+
+        rm "$ZIP_FILE"
+        (cd "$WORK_DIR" && zip -r -q "$OLDPWD/$ZIP_FILE" .)
+
+        rm -rf "$WORK_DIR"
+        echo "✓ KonvertR-Setup.command bundled into $(basename $ZIP_FILE)"
+        echo "  Final size: $(du -h "$ZIP_FILE" | cut -f1)"
     
     - name: Upload macOS package
       uses: actions/upload-artifact@v4
