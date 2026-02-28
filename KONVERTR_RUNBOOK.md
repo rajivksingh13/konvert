@@ -1476,83 +1476,235 @@ message Person {
 
 ## Troubleshooting
 
-### Application Won't Start
+### Application Won't Start (Windows)
 
-**Problem:** Application doesn't launch
+**Problem:** Application doesn't launch or shows an error on Windows.
 
 **Solutions:**
-
-**Windows:**
-1. Check if Java is installed:
+1. Check if Java 17+ is installed:
    ```powershell
    java -version
    ```
+   If not installed, download from [https://adoptium.net](https://adoptium.net).
 2. Check if port 8989 is available:
    ```powershell
    netstat -ano | findstr :8989
    ```
-3. Run as Administrator (right-click → Run as Administrator)
-4. Check Windows Defender/Antivirus (may block the app)
-
-**macOS:**
-1. Check if Java is installed:
-   ```bash
-   java -version
+   If the port is in use, close the other application or kill the process:
+   ```powershell
+   taskkill /PID <PID> /F
    ```
-2. Check if port 8989 is available:
-   ```bash
-   lsof -i :8989
-   ```
-3. Allow app in Security & Privacy:
-   - System Preferences → Security & Privacy
-   - Click "Open Anyway" if blocked
+3. Run as Administrator (right-click `KonvertR.exe` → **Run as Administrator**).
+4. Check Windows Defender/Antivirus — it may be blocking the application.
 
-### Browser Doesn't Open Automatically
+### Application Won't Start (macOS) — "Backend failed to start"
 
-**Problem:** Application starts but browser doesn't open
+**Problem:** KonvertR opens but shows a warning screen:
 
-**Solutions:**
-1. Manually open browser
-2. Navigate to `http://localhost:8989`
-3. Check if backend is running (check task manager/activity monitor)
+> "Backend failed to start. Please check if port 8989 is available."
 
-### Port Already in Use
+Or a more specific message like "Java was not found" or "Backend stopped unexpectedly."
 
-**Problem:** Error: "Port 8989 is already in use"
+---
 
-**Solutions:**
+**Step 1 — Check the error screen**
 
-**Windows:**
-```powershell
-# Find process using port 8989
-netstat -ano | findstr :8989
+KonvertR now shows a **specific error message** on the warning screen instead of a generic message. Read it carefully — it tells you exactly what went wrong.
 
-# Kill the process (replace PID with actual process ID)
-taskkill /PID <PID> /F
+| Error message you see | What it means | Go to |
+|---|---|---|
+| "Java was not found on this computer" | Java is not installed or KonvertR can't find it | Step 2 |
+| "Backend stopped unexpectedly (exit code ...)" | Java was found but the app crashed on startup | Step 3 |
+| "Backend application file not found" | The app package is incomplete or corrupted | Step 4 |
+| "Backend did not respond after 60 seconds" | Java started but never became healthy | Step 5 |
+
+---
+
+**Step 2 — Java not found (even though it's installed in Terminal)**
+
+This is the **most common macOS issue**. When you double-click `KonvertR.app` in Finder, the app gets a **minimal system environment** — NOT the same environment as your Terminal. So even if `java -version` works in Terminal, KonvertR might not find it.
+
+**Verify Java is visible to the system:**
+
+Open Terminal and run:
+```bash
+/usr/libexec/java_home
 ```
 
-**macOS:**
+- **If it prints a path** (e.g., `/Library/Java/JavaVirtualMachines/jdk-25.jdk/Contents/Home`), Java IS installed system-wide. KonvertR should find it. Continue to Step 3.
+- **If it prints an error** ("No Java runtime present"), Java is NOT properly installed system-wide. Install it:
+
+**Install Java (pick one):**
 ```bash
-# Find process using port 8989
+# Option A: Homebrew (recommended for macOS)
+brew install openjdk@17
+
+# After installing via Homebrew, register it system-wide:
+sudo ln -sfn $(brew --prefix openjdk@17)/libexec/openjdk.jdk \
+  /Library/Java/JavaVirtualMachines/openjdk-17.jdk
+```
+
+```bash
+# Option B: Download installer from https://adoptium.net
+# Choose macOS → JDK 17 or 21 LTS → .pkg installer
+# The .pkg installer registers Java system-wide automatically.
+```
+
+After installing, verify:
+```bash
+/usr/libexec/java_home
+# Should print the JDK path
+
+java -version
+# Should print the version
+```
+
+Then restart KonvertR.
+
+---
+
+**Step 3 — Backend stopped unexpectedly (Java found, but app crashed)**
+
+The error screen will show a **Java error message** (the first few lines of the crash). Common causes:
+
+| Error detail | Meaning | Fix |
+|---|---|---|
+| `Address already in use` | Port 8989 is occupied by another app | Close the other app or kill the process (see below) |
+| `UnsupportedClassVersionError` | Java version is too old (below 17) | Install Java 17+ (see Step 2) |
+| Module or reflection error | JDK version may be too new for this Spring Boot release | Install JDK 17 or 21 LTS instead |
+| Other Java exception | Application bug or corrupt package | Share the startup log (see Step 6) |
+
+**Free up port 8989:**
+```bash
+# Find what's using the port
 lsof -i :8989
 
-# Kill the process (replace PID with actual process ID)
+# Kill it (replace <PID> with the number from the PID column)
 kill -9 <PID>
 ```
 
+Then restart KonvertR.
+
+**If using a very new JDK (25+) and seeing module/reflection errors:**
+```bash
+# Install JDK 17 or 21 LTS alongside your existing JDK
+brew install openjdk@17
+sudo ln -sfn $(brew --prefix openjdk@17)/libexec/openjdk.jdk \
+  /Library/Java/JavaVirtualMachines/openjdk-17.jdk
+
+# Set JDK 17 as default (optional — only if KonvertR keeps crashing with JDK 25)
+export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+```
+
+---
+
+**Step 4 — Backend application file not found**
+
+The file `backend.dat` is missing from the app bundle. This means the download or extraction was incomplete.
+
+**Fix:**
+1. Delete the current `KonvertR.app` from `/Applications`
+2. Re-download `KonvertR-Portable-*.zip` from the releases page
+3. Extract the ZIP fully
+4. Move `KonvertR.app` to `/Applications`
+5. Double-click `KonvertR-Setup.command` to remove quarantine
+6. Try again
+
+---
+
+**Step 5 — Backend did not respond after 60 seconds**
+
+Java started but the health check at `http://localhost:8989/api/health` never succeeded. Possible causes:
+- **Firewall or security software** blocking localhost connections
+- **Very slow machine** — the backend needs more time to initialize
+- **Conflicting application** already running on port 8989
+
+**Fix:**
+1. Check macOS Firewall: **System Settings → Network → Firewall** — allow incoming connections for KonvertR.
+2. Check if port 8989 is free: `lsof -i :8989`
+3. Try running the backend JAR manually to see detailed output:
+   ```bash
+   # Find the backend file inside the app bundle
+   ls /Applications/KonvertR.app/Contents/Resources/backend/
+
+   # Run it directly (replace backend.dat with the actual filename)
+   java -jar /Applications/KonvertR.app/Contents/Resources/backend/backend.dat --server.port=8989
+   ```
+   This will print the full Spring Boot startup log in your Terminal — look for error messages.
+
+---
+
+**Step 6 — Share the startup log for support**
+
+KonvertR writes a diagnostic log file every time it starts. If none of the above steps help, share this file for support.
+
+**Log file location:**
+```
+~/Library/Application Support/konvertr-electron/logs/startup.log
+```
+
+**Open it in Terminal:**
+```bash
+cat ~/Library/Application\ Support/konvertr-electron/logs/startup.log
+```
+
+This file contains:
+- Java executable path and version detected
+- Backend file path and size
+- Backend process output (stdout/stderr)
+- Exact error message if the backend crashed
+
+Share this file when reporting an issue.
+
+---
+
+**Quick Reference — macOS Startup Troubleshooting**
+
+```
+KonvertR won't start on macOS?
+│
+├─ Error: "Java was not found"
+│   └─ Run: /usr/libexec/java_home
+│       ├─ Prints a path → Java IS installed → check startup.log
+│       └─ Error → Install Java: brew install openjdk@17
+│
+├─ Error: "Backend stopped unexpectedly"
+│   ├─ "Address already in use" → kill process on port 8989
+│   ├─ "UnsupportedClassVersionError" → install Java 17+
+│   └─ Module/reflection error → install JDK 17 or 21 LTS
+│
+├─ Error: "Backend file not found"
+│   └─ Re-download and re-extract KonvertR
+│
+└─ Error: "Did not respond after 60 seconds"
+    ├─ Check macOS Firewall settings
+    ├─ Check port 8989: lsof -i :8989
+    └─ Run backend manually to see full error
+```
+
+### Browser Doesn't Open Automatically
+
+**Problem:** Application starts but browser doesn't open.
+
+**Solutions:**
+1. Manually open your browser
+2. Navigate to `http://localhost:8989`
+3. Verify the backend is running:
+   - **Windows:** Check Task Manager for a Java process
+   - **macOS:** Check Activity Monitor for a Java process
+
 ### Conversion Fails
 
-**Problem:** Conversion returns error
+**Problem:** Conversion returns an error.
 
 **Solutions:**
 1. **Check input format:**
-   - Verify input is valid (use Schema Validation)
-   - Check for syntax errors
+   - Verify input is valid (use **Schema Validation** in Utilities tab first)
+   - Check for syntax errors (missing brackets, commas, quotes)
 
 2. **Protobuf conversion:**
-   - Ensure schema is provided
-   - Verify schema matches data structure
-   - Check field names match (case-sensitive)
+   - Ensure a `.proto` schema is provided
+   - Verify schema field names match your data (case-sensitive)
 
 3. **File upload:**
    - Check file size (max 10 MB)
@@ -1561,40 +1713,31 @@ kill -9 <PID>
 
 ### Slow Performance
 
-**Problem:** Application is slow
+**Problem:** Application is slow.
 
 **Solutions:**
-1. **Large files:**
-   - Split large files into smaller chunks
-   - Use batch processing for multiple files
-
-2. **System resources:**
-   - Close other applications
-   - Check available RAM
-   - Restart the application
-
-3. **Network (if applicable):**
-   - Ensure you're running offline (no network delays)
-   - Check localhost connectivity
+1. **Large files:** Split into smaller chunks or use batch processing
+2. **System resources:** Close other applications, check available RAM
+3. **Restart:** Close and reopen KonvertR
 
 ### File Download Issues
 
-**Problem:** Can't download converted files
+**Problem:** Can't download converted files.
 
 **Solutions:**
 1. Check browser download settings
 2. Check browser popup blocker
 3. Try right-click → Save As
-4. Check disk space
+4. Check available disk space
 
 ### Theme Not Saving
 
-**Problem:** Theme resets on restart
+**Problem:** Theme resets on restart.
 
 **Solutions:**
 1. Clear browser cache
 2. Check browser storage permissions
-3. Try different browser
+3. Try a different browser
 
 ---
 
