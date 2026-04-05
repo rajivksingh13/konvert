@@ -54,7 +54,11 @@
         }
       ],
       "icon": "build/icon.icns",
-      "artifactName": "KonvertR-Portable-${version}.zip"
+      "artifactName": "KonvertR-Portable-${version}.zip",
+      "identity": null,
+      "hardenedRuntime": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.inherit.plist"
     },
     "linux": {
       "target": [

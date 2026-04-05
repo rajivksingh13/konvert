@@ -213,8 +213,10 @@ jobs:
           fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
         "
         
-        # Build Electron app
+        # Build Electron app (explicitly skip code signing for unsigned distribution)
         export CI=true
+        export CSC_IDENTITY_AUTO_DISCOVERY=false
+        export CSC_LINK=""
         npm run build:mac
         
         if [ $? -ne 0 ]; then
